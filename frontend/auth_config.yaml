@@ -1,0 +1,28 @@
+cookie:
+  expiry_days: 30
+  key: sfbgfbnfgdb
+  name: gsdfgsdfgsf
+credentials:
+  usernames:
+    admin:
+      email: andrejlobanovic@gmail.com
+      failed_login_attempts: 0 # Will be managed automatically
+      first_name: Andrey
+      last_name: Lobanovich
+      logged_in: False # Will be managed automatically
+      password: 22614856eeE! # Will be hashed automatically
+      roles:
+      - admin
+      - editor
+      - viewer
+    odeon_manager:
+      email: andrejlobanovic@gmail.com
+      failed_login_attempts: 0 # Will be managed automatically
+      first_name: Odeon
+      last_name: Manager
+      logged_in: False # Will be managed automatically
+      password: odeon_pass # Will be hashed automatically
+      roles:
+        - admin
+        - editor
+        - viewer
