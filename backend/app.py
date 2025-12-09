@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from backend.models.UserModel import UserModel
-from backend.services.initDB import init_db
+from backend.models.initDB import init_db
 
 async def lifespan(app : FastAPI):
     await init_db()
