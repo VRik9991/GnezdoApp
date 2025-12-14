@@ -5,7 +5,7 @@ class UserModel(Document):
     character_name:str
     other_character_name:str
     name:str
-    tgname:str
+    tg_name:str
     status:str
     class Settings:
         name = "users"
