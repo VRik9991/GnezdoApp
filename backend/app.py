@@ -1,4 +1,6 @@
-from fastapi import FastAPI
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException
 from backend.models.UserModel import UserModel
 from backend.models.initDB import init_db
 
@@ -9,7 +11,7 @@ async def lifespan(app : FastAPI):
 
 app = FastAPI(title="GnezdoApp", version="1.0",lifespan=lifespan)
 
-@app.post("/users")
+@app.post("/user")
 async def create_user(foto: str,character_name:str,other_character_name:str,name:str,tg_name:str,status:str):
     user = UserModel(
         foto=foto,
@@ -20,3 +22,48 @@ async def create_user(foto: str,character_name:str,other_character_name:str,name
         status=status
     )
     await user.save()
+    return user
+
+
+@app.get("/user")
+async def read_user(name: str):
+    user = await UserModel.find_one(UserModel.name == name)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@app.put("/user")
+async def update_user(
+    name: str,
+    new_foto: Optional[str] = None,
+    new_character_name: Optional[str] = None,
+    new_other_character_name: Optional[str] = None,
+    new_name: Optional[str] = None,
+    new_status: Optional[str] = None,
+    new_tg_name: Optional[str] = None,
+):
+    user = await read_user(name)
+    if new_foto is not None:
+        user.foto = new_foto
+    if new_character_name is not None:
+        user.character_name = new_character_name
+    if new_other_character_name is not None:
+        user.other_character_name = new_other_character_name
+    if new_name is not None:
+        user.name = new_name
+    if new_status is not None:
+        user.status = new_status
+    if new_tg_name is not None:
+        user.tg_name = new_tg_name
+    await user.save()
+    return user
+
+@app.delete("/user")
+async def delete_user(name:str):
+    user = await read_user(name)
+    await user.delete()
+    return {"detail": "User deleted"}
+
+
+
+
