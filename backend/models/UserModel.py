@@ -1,5 +1,7 @@
 from beanie import Document
 
+from backend.models.UserModelStats import UserModelStats
+
 class UserModel(Document):
     foto: str
     character_name:str
@@ -7,5 +9,6 @@ class UserModel(Document):
     name:str
     tg_name:str
     status:str
+    stats: UserModelStats
     class Settings:
         name = "users"

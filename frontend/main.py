@@ -488,11 +488,15 @@ def show_full_news(news):
         news['status'] = "Неактуален"
         st.success("Новость скрыта")
 
+def library():
+    pass
 
 st.sidebar.title("Меню")
-section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости"])
+section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека"])
 
 if section == "Профиль":
     Profile()
 elif section == "Новости":
     News()
+elif section == "Библиотека":
+    library()
