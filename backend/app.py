@@ -1,25 +1,32 @@
+from os import access
 from typing import Optional
+import logging
 
 from fastapi import FastAPI, HTTPException
+
+from backend.Interfaces.CreateLibraryItemInterface import CreateLibraryItemInterface
 from backend.models.UserModel import UserModel
+from backend.models.LibraryItemModel import LibraryItemModel, LibraryItemType
+from backend.models.UserModelStats import UserModelStats
 from backend.models.initDB import init_db
 
 async def lifespan(app : FastAPI):
     await init_db()
     yield
-
+logger = logging.getLogger()
 
 app = FastAPI(title="GnezdoApp", version="1.0",lifespan=lifespan)
 
 @app.post("/user")
-async def create_user(foto: str,character_name:str,other_character_name:str,name:str,tg_name:str,status:str):
+async def create_user(foto: str,character_name:str,other_character_name:str,name:str,tg_name:str,status:str,stats:UserModelStats):
     user = UserModel(
         foto=foto,
         character_name=character_name,
         other_character_name=other_character_name,
         name=name,
         tg_name=tg_name,
-        status=status
+        status=status,
+        stats=stats
     )
     await user.save()
     return user
@@ -65,4 +72,23 @@ async def delete_user(name:str):
     return {"detail": "User deleted"}
 
 @app.post("/library")
-async
+async def create_library_item(data: CreateLibraryItemInterface):
+    try:
+        item = LibraryItemModel(
+        name=data.name,
+        item_type=data.item_type,
+        item_text=data.item_text,
+        date=data.date,
+        access=data.access,
+        author=data.author,
+        picture=data.picture
+        )
+    except Exception as e:
+        return str(e)
+    await item.save()
+
+@app.get("/library")
+async def get_library():
+    library = await LibraryItemModel.find_all().to_list()
+    logger.error(str(library))
+    return library

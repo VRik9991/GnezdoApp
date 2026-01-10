@@ -1,6 +1,6 @@
-from beanie import Document
+from pydantic import BaseModel
 
-class UserModelStats(Document):
+class UserModelStats(BaseModel):
     klan: str
     sir_name: str
     generation: int

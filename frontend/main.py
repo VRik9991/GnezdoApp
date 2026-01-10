@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import streamlit as st
 import pandas as pd
 
@@ -10,7 +12,8 @@ import random
 with open('auth_config.yaml') as file:
     config = yaml.load(file, Loader=yaml.SafeLoader)
 
-# ---- Создаём аутентификатор ----
+api = APIClient("http://localhost:8000")
+
 def Profile():
     authenticator = stauth.Authenticate(
         config['credentials'],
@@ -489,10 +492,96 @@ def show_full_news(news):
         st.success("Новость скрыта")
 
 def library():
+    current_user = {
+        "name": "Альдрик ван Хольц",
+        "role": "Player",  # Игрок | Мастер | Игротех | Макроносфер
+    }
+
+    ARTICLES = api.get_library()
+
+    query_params = st.query_params
+    opened_id = query_params.get("article_id")
+
+    # ЕСЛИ ОТКРЫТА ПОЛНАЯ ВЕРСИЯ
+
+    if opened_id:
+        article = next(
+            (a for a in ARTICLES if str(a["_id"]) == opened_id),
+            None
+        )
+
+        if not article:
+            st.error("Статья не найдена")
+            st.stop()
+
+        st.button("⬅ Назад", on_click=lambda: st.query_params.clear())
+
+        st.title(article.get("name") or "Без названия")
+        st.caption(
+            f'{article.get("item_type")} • '
+            f'{article.get("author")} • '
+            f'{article.get("date")}'
+        )
+        st.divider()
+        st.write(article.get("item_text") or "_Текст отсутствует_")
+        st.stop()
+
+    # СПИСОК СТАТЕЙ
+
+    st.title("📚 Библиотека")
+
+    if not ARTICLES:
+        st.info("Статей нет")
+    else:
+        cols = st.columns(3)
+
+        for i, article in enumerate(ARTICLES):
+            with cols[i % 3]:
+                with st.container(border=True):
+                    st.subheader(article.get("name") or "Без названия")
+                    st.caption(f'Тип: {article.get("item_type")}')
+                    if article.get("picture") is not None:
+                        st.image(article.get("picture"), caption="Загруженное изображение", use_container_width=True)
+
+                    st.button(
+                        "Открыть полностью",
+                        key=str(article["_id"]),
+                        use_container_width=True,
+                        on_click=lambda aid=str(article["_id"]): st.query_params.update(
+                            {"article_id": aid}
+                        )
+                    )
+def create_li():
+    st.title("Создание статьи")
+
+    title = st.text_input("Название")
+
+    type_ = st.selectbox(
+        "Тип",
+        ["Lore", "Game text", "Rule"]
+    )
+
+    access = st.selectbox(
+        "Доступ",
+        ['Player', 'Game technician', 'Macronosphere', 'Master']
+    )
+
+    text = st.text_area(
+        "Полный текст",
+        height=400
+    )
+    picture = st.file_uploader(
+        "Выберите изображение",
+        type=["png", "jpg", "jpeg", "webp"]
+    )
+    if st.button("Сохранить"):
+        api.create_library_item(title, type_, text, str(datetime.now()), access, "Aboba", picture)
+
+def character_gallery():
     pass
 
 st.sidebar.title("Меню")
-section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека"])
+section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека", "Создать статью",  "Галерея персонажей"])
 
 if section == "Профиль":
     Profile()
@@ -500,3 +589,7 @@ elif section == "Новости":
     News()
 elif section == "Библиотека":
     library()
+elif section == "Создать статью":
+    create_li()
+elif section == "Галерея персонажей":
+    character_gallery()
