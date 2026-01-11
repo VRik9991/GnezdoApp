@@ -1,3 +1,5 @@
+from typing import Optional
+
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 import os
@@ -7,13 +9,21 @@ from backend.models.UserModel import UserModel
 MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
 MONGO_LOGIN = os.getenv("MONGO_INITDB_ROOT_USERNAME")
 MONGO_PORT = os.getenv("MONGO_PORT")
-MONGO_URI = f"mongodb://localhost:27017"
+MONGO_URI = "mongodb://localhost:27017"
 
-async def init_db():
-    client = AsyncIOMotorClient(MONGO_URI)
+_client: Optional[AsyncIOMotorClient] = None
+_initialized = False
+
+async def init_db() -> None:
+    global _client, _initialized
+    if _initialized:
+        return
+    if _client is None:
+        _client = AsyncIOMotorClient(MONGO_URI)
     await init_beanie(
-        database=client["users"],
+        database=_client["users"],
         document_models=[
             UserModel,
         ]
     )
+    _initialized = True
