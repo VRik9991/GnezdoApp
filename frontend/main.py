@@ -47,14 +47,16 @@ def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
         usernames[user_key]["password"] = hashed_password
     return True
 
-
+api = APIClient("http://localhost:8000")
 _hashed_any = _maybe_hash_passwords_inplace(config)
+
 authenticator = stauth.Authenticate(
-        config['credentials'],
+        api.user_credentials(),
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
     )
+
 
 _login_title = st.empty()
 _login_caption = st.empty()
