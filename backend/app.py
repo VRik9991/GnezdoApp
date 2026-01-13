@@ -21,18 +21,20 @@ app = FastAPI(
 
 @app.get("/user_credentials")
 async def user_credentials():
-    users_credentials = []
+    users_credentials = dict()
     for user in await UserModel.find_all().to_list():
-        users_credentials.append({
+        users_credentials[user.email]={
             "email": user.email,
             "failed_login_attempts": 0,
             "first_name": user.name,
             "last_name": user.last_name,
             "logged_in": False,
             "password": user.password,
-            "roles": user.role,
-        })
-    return users_credentials
+            "roles": user.role,}
+            
+            
+        
+    return{"usernames": users_credentials}
 
 
 
