@@ -12,6 +12,15 @@ class APIClient:
             print(response.json())
             return response.json()
 
+    def _put(self, path, json):
+        with httpx.Client() as client:
+            response = client.put(
+                f"{self.base_url}{path}",
+                json=json
+            )
+            print(response.status_code)
+            print(response.json())
+
     def _post(self, path, json):
         with httpx.Client() as client:
             response = client.post(
@@ -20,14 +29,13 @@ class APIClient:
             )
             print(response.status_code)
             print(response.json())
-
-    async def register(self, email: str, password: str):
-        return self._post("/auth/register", {"email": email, "password": password})
     def get_character(self):
         pass
     def get_all_character(self):
         pass
-    def create_library_item(self, name: str, item_type: str, item_text: str, date: str, access: str, author: str, picture: bytes):
+    def create_library_item(self, name: str, item_type: str, item_text: str, date: str, access: str, author: str, picture: str):
         return self._post("/library", {"name": name, "item_text": item_text, "item_type": item_type, "date": date, "access": access, "author": author, "picture": picture})
     def get_library(self):
-        return self._get("/library")
+        return self._get("/library/all")
+    def edit_library_item(self, id, name: str, item_type: str, item_text: str, access: str, picture: str):
+        return self._put("/library", {"id": id, "name": name, "item_text": item_text, "item_type": item_type, "access": access, "picture": picture})

@@ -1,22 +1,25 @@
+import base64
 from os import access
 from typing import Optional
 import logging
 
+from bson import ObjectId
 from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
 from backend.Interfaces.CreateLibraryItemInterface import CreateLibraryItemInterface
 from backend.models.UserModel import UserModel
-from backend.models.LibraryItemModel import LibraryItemModel, LibraryItemType
+from backend.models.LibraryItemModel import LibraryItemModel, LibraryItemType, LibraryAccessType
 from backend.models.UserModelStats import UserModelStats
 from backend.models.initDB import init_db
 
 async def lifespan(app : FastAPI):
     await init_db()
+
     yield
 logger = logging.getLogger()
 
 app = FastAPI(title="GnezdoApp", version="1.0",lifespan=lifespan)
-
 @app.post("/user")
 async def create_user(foto: str,character_name:str,other_character_name:str,name:str,tg_name:str,status:str,stats:UserModelStats):
     user = UserModel(
@@ -38,6 +41,10 @@ async def read_user(name: str):
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user
+
+@app.get("/users")
+async def get_all_character():
+    pass
 
 @app.put("/user")
 async def update_user(
@@ -87,8 +94,41 @@ async def create_library_item(data: CreateLibraryItemInterface):
         return str(e)
     await item.save()
 
-@app.get("/library")
+@app.get("/library/all")
 async def get_library():
-    library = await LibraryItemModel.find_all().to_list()
-    logger.error(str(library))
-    return library
+    items = await LibraryItemModel.find_all().to_list()
+    return items
+
+@app.get("/library/one")
+async def get_library_item(item_id):
+    item = await LibraryItemModel.get(ObjectId(item_id))
+
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    return item
+
+class PutItemModel(BaseModel):
+    id: str
+    name: str
+    item_text: str
+    item_type: LibraryItemType
+    access: LibraryAccessType
+    picture: bytes | None
+
+@app.put("/library")
+async def put_library_item(data: PutItemModel):
+    logger.error(str(data))
+    item = await get_library_item(data.id)
+    if data.access is not None:
+        item.access = data.access
+    if data.item_text is not None:
+        item.item_text = data.item_text
+    if data.name is not None:
+        item.name = data.name
+    if data.item_type is not None:
+        item.item_type = data.item_type
+    if data.picture is not None:
+        item.picture = data.picture
+    await item.save()
+    return item

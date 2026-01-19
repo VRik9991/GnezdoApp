@@ -20,4 +20,4 @@ class LibraryItemModel(Document):
     date: str
     access: LibraryAccessType
     author: str
-    picture: bytes
+    picture: bytes | None
