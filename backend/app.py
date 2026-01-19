@@ -118,7 +118,6 @@ class PutItemModel(BaseModel):
 
 @app.put("/library")
 async def put_library_item(data: PutItemModel):
-    logger.error(str(data))
     item = await get_library_item(data.id)
     if data.access is not None:
         item.access = data.access

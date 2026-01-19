@@ -9,7 +9,6 @@ class APIClient:
             response = client.get(
                 f"{self.base_url}{path}",)
             print(response.status_code)
-            print(response.json())
             return response.json()
 
     def _put(self, path, json):
@@ -19,7 +18,6 @@ class APIClient:
                 json=json
             )
             print(response.status_code)
-            print(response.json())
 
     def _post(self, path, json):
         with httpx.Client() as client:
