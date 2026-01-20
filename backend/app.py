@@ -72,8 +72,8 @@ async def create_user(
 
 
 @app.get("/user")
-async def read_user(name: str):
-    user = await UserModel.find_one(UserModel.name == name)
+async def read_user(email: str):
+    user = await UserModel.find_one(UserModel.email == email)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user

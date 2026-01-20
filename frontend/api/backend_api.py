@@ -29,3 +29,6 @@ class APIClient:
 
     def user_credentials(self):
         return self._get("/user_credentials")   
+    
+    def get_user(self, email: str):
+        return self._get("/user", {"email": email})
