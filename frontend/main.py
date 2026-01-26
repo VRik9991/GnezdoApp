@@ -465,14 +465,12 @@ def library():
             cols = st.columns(3)
 
             for i, article in enumerate(items):
-                print(article)
                 with cols[i % 3]:
                     with st.container(border=True):
                         st.subheader(article.get("name") or "Без названия")
                         st.caption(f'Тип: {article.get("item_type")}')
                         try:
-                            st.image(base64.b64decode(article["picture"]), caption="Загруженное изображение",
-                                     use_container_width=True)
+                            st.image(base64.b64decode(article["picture"]), caption="Загруженное изображение")
                         except:
                             pass
                         if st.button("Открыть полностью", key=article.get("_id")):
@@ -495,8 +493,7 @@ def library():
         try:
             st.image(
                 base64.b64decode(article["picture"]),
-                caption="Загруженное изображение",
-                use_container_width=False
+                caption="Загруженное изображение"
             )
         except:
             pass
@@ -587,7 +584,6 @@ def library():
         edit()
     elif ss.library_page == "create_library_item":
         create_library_item()
-
 
 def character_gallery():
     pass
