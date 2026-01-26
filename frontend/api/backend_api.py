@@ -1,15 +1,16 @@
+from typing import Any, Optional
+
 import httpx
 
 class APIClient:
     def __init__(self, base_url: str):
-        self.base_url = base_url
-
-    def _get(self, path):
-        with httpx.Client() as client:
-            response = client.get(
-                f"{self.base_url}{path}",)
-            print(response.status_code)
-            print(response.json())
+        self.base_url = base_url.rstrip("/")
+    def _get(self, path: str, params: Optional[dict[str, Any]] = None) -> Any:
+        if not path.startswith("/"):
+            path = f"/{path}"
+        with httpx.Client(base_url=self.base_url) as client:
+            response = client.get(path, params=params)
+            response.raise_for_status()
             return response.json()
 
     def _put(self, path, json):
@@ -39,3 +40,12 @@ class APIClient:
         return self._get("/library/all")
     def edit_library_item(self, id, name: str, item_type: str, item_text: str, access: str, picture: str):
         return self._put("/library", {"id": id, "name": name, "item_text": item_text, "item_type": item_type, "access": access, "picture": picture})
+
+    def register(self, email: str, password: str):
+        return self._post("/auth/register", {"email": email, "password": password})
+
+    def user_credentials(self):
+        return self._get("/user_credentials")
+
+    def get_user(self, email: str):
+        return self._get("/user", {"email": email})

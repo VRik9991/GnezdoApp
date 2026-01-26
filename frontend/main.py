@@ -48,16 +48,14 @@ def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
         usernames[user_key]["password"] = hashed_password
     return True
 
-
+api = APIClient("http://localhost:8000")
 _hashed_any = _maybe_hash_passwords_inplace(config)
 authenticator = stauth.Authenticate(
-        config['credentials'],
+        api.user_credentials(),
         config['cookie']['name'],
         config['cookie']['key'],
         config['cookie']['expiry_days'],
     )
-
-api = APIClient("http://localhost:8000")
 
 _login_title = st.empty()
 _login_caption = st.empty()
@@ -81,14 +79,15 @@ if authentication_status is not True:
 
 # ---- Создаём аутентификатор ----
 def Profile():
-
+    
     if authentication_status:
+        user = api.get_user(st.session_state.get("username"))
         character = {
-            "photo": "https://i.imgur.com/Z7AzH2c.png",  # можно заменить на ссылку
-            "name": "Альдрик ван Хольц",
-            "alt_names": "Серый Философ, Старший Шепот",
-            "player_name": "Константин Л.",
-            "shreknet": "@philosopher_13",
+            "photo": user["foto"],
+            "name": user["character_name"],
+            "alt_names": user["other_character_name"],
+            "player_name": f"{user['name']} {user['last_name'][:1]}.",
+            "shreknet": user["tg_name"],
             "status": "Активен",        # или "Торпор"
             "is_torpor": False,          # включи True — появится кнопка выхода
         "disciplines": {
@@ -166,74 +165,43 @@ def Profile():
         st.divider()
         # =========================================================
 
-        stats = {
-            "clan": "Тремер",
-            "clan_hint": "Кровавые маги. Строгая пирамида, дисциплины: Тауматургия, Ауспекс, Доминирование.",
-
-            "sir": "Магистр Рудольф Гельман",
-            "sir_hint": "Старший оккультист Венского Чанцери.",
-
-            "generation_base": 10,
-            "generation_mod": -1,
-
-            "health": 2,   # 0–6
-            "health_hint": "Каждый уровень — один шаг к торпору. При 6 — торпор.",  # 0–10
-
-            "hunger": 4,
-
-            "str_base": 2,
-            "str_mod": 1,
-
-            "sta_base": 3,
-            "sta_mod": 0,
-
-            "ritualist": True,
-            "evade": False,
-            "true_faith": False,
-            "infernalist": False,
-
-            "extra_status": "Допуск в закрытый ритуальный круг.",
-
-            "torpor_button": True,       # кнопка “Впасть в торпор”
-            "diablerie_hint": "Диаблери — тяжёлое преступление. Последствия определяет мастер."
-        }
 
         if "hunger_value" not in st.session_state:
-            st.session_state.hunger_value = stats["hunger"]
+            st.session_state.hunger_value = user['stats']["hunger"]
 
         @st.dialog("Клан")
-        def modal_clan():
-            st.write(stats["clan_hint"])
+        def modal_klan():
+            st.write(user['stats']["klan_hint"])
 
         @st.dialog("Сир")
-        def modal_sire():
-            st.write(stats["sir_hint"])
+        def modal_sir_namee():
+            st.write(user['stats']["sir_name_hint"])
 
         @st.dialog("Здоровье")
         def modal_health():
-            st.write(stats["health_hint"])
+            st.write(user['stats']["health_hint"])
 
         @st.dialog("Диаблери")
         def modal_diablerie():
-            st.write(stats["diablerie_hint"])
+            st.write(user['stats']["diablerie_hint"])
 
         col1, col2, col3 = st.columns(3)
 
         with col1:
             st.subheader("Клан")
-            st.write(f"**{stats['clan']}**")
-            st.button("Подсказка", key="clan_hint_btn", on_click=modal_clan)
+            st.write(f"**{user['stats']['klan']}**")
+            st.button("Подсказка", key="klan_hint_btn", on_click=modal_klan)
 
         with col2:
             st.subheader("Сир")
-            st.write(f"**{stats['sir']}**")
-            st.button("Подсказка", key="sir_hint_btn", on_click=modal_sire)
+            st.write(f"**{user['stats']['sir_name']}**")
+            st.button("Подсказка", key="sir_name_hint_btn", on_click=modal_sir_namee)
 
         with col3:
             st.subheader("Поколение")
-            gen = stats["generation_base"] + stats["generation_mod"]
+            gen = user['stats']["generation"] + user['stats']["generation_mod"]
             st.metric("Генерация", gen)
-            st.caption(f"База: {stats['generation_base']}  |  Модификатор: {stats['generation_mod']}")
+            st.caption(f"База: {user['stats']['generation']}  |  Модификатор: {user['stats']['generation_mod']}")
 
         st.markdown("---")
 
@@ -244,7 +212,7 @@ def Profile():
         colA, colB = st.columns(2)
 
         with colA:
-            st.metric("Здоровье", f"{stats['health']} / 6")
+            st.metric("Здоровье", f"{user['stats']['health']} / 6")
             st.button("Что это?", key="health_hint_btn", on_click=modal_health)
 
         with colB:
@@ -268,18 +236,18 @@ def Profile():
         with colX:
             st.metric(
                 "Сила",
-                value=stats["str_base"] + stats["str_mod"],
-                delta=f"+{stats['str_mod']} мод."
+                value=user['stats']["strength"] + user['stats']["strength_mod"],
+                delta=f"+{user['stats']['strength_mod']} мод."
             )
-            st.caption(f"База: {stats['str_base']}")
+            st.caption(f"База: {user['stats']['strength']}")
 
         with colY:
             st.metric(
                 "Стамина",
-                value=stats["sta_base"] + stats["sta_mod"],
-                delta=f"+{stats['sta_mod']} мод."
+                value=user['stats']["stamina"] + user['stats']["stamina_mod"],
+                delta=f"+{user['stats']['stamina_mod']} мод."
             )
-            st.caption(f"База: {stats['sta_base']}")
+            st.caption(f"База: {user['stats']['stamina']}")
 
         # ---------------------------- Флаги ----------------------------
 
@@ -288,27 +256,27 @@ def Profile():
         colF1, colF2, colF3, colF4 = st.columns(4)
 
         with colF1:
-            st.checkbox("Ритуалист", stats["ritualist"], disabled=True)
+            st.checkbox("Ритуалист", user['stats']["ritualist"], disabled=True)
 
         with colF2:
-            st.checkbox("Уворот", stats["evade"], disabled=True)
+            st.checkbox("Уворот", user['stats']["dodge"], disabled=True)
 
         with colF3:
-            st.checkbox("Истинная вера", stats["true_faith"], disabled=True)
+            st.checkbox("Истинная вера", user['stats']["true_faith"], disabled=True)
 
         with colF4:
-            st.checkbox("Ощущается инферналистом", stats["infernalist"], disabled=True)
+            st.checkbox("Ощущается инферналистом", user['stats']["feels_infernalist"], disabled=True)
 
         # ---------------------------- Другие статусы ----------------------------
 
         st.subheader("Другие статусы")
-        st.info(stats["extra_status"])
+        st.info(user['stats']["extra_status"])
 
         # ---------------------------- Кнопки ----------------------------
 
         st.markdown("### Системные действия")
 
-        if stats["torpor_button"]:
+        if user['stats']["torpor_button"]:
             st.button("⚰️ Впасть в торпор (фиксировано)", use_container_width=True)
 
         st.button("Меня диаблерят", use_container_width=True, on_click=modal_diablerie)
@@ -477,79 +445,6 @@ def Profile():
             filtered.append(news)
         return sorted(filtered, key=lambda x: x['created'], reverse=True)
 
-# #def News():
-#     st.sidebar.title("Фильтры новостей")
-#     hide_non_masters = st.sidebar.checkbox("Скрыть новости не от мастеров")
-#     hide_nicks = st.sidebar.text_input("Скрыть новости от ников (через запятую)").split(",")
-#     hide_nicks = [nick.strip() for nick in hide_nicks if nick.strip()]
-
-#     news_to_show = filter_news(news_db, hide_non_masters, hide_nicks)
-
-#     for news in news_to_show:
-#         st.markdown("---")
-#         cols = st.columns([1, 5])
-#         with cols[0]:
-#             st.image(news['avatar'], width=50)
-#         with cols[1]:
-#             st.subheader(f"{news['author']} — {news['title']}")
-#             st.write(news['content'][:100] + "...")  # Обрезанное содержание
-#             if st.button(f"Читать полностью (id={news['id']})"):
-#                 show_full_news(news)
-
-# #def show_full_news(news):
-#     st.markdown("---")
-#     cols = st.columns([1, 5])
-#     with cols[0]:
-#         st.image(news['avatar'], width=70)
-#     with cols[1]:
-#         st.subheader(news['author'])
-
-#     # IT-комментарий (для мастеров)
-#     st.text_area("IT-комментарий (ИТ:)", "")
-
-#     # Полное содержание
-#     st.write(news['content'])
-
-#     # Место для картинки (пока просто выводим аватар)
-#     st.image(news['avatar'], width=200)
-
-#     # Лайки и дизлайки
-#     col1, col2 = st.columns(2)
-#     with col1:
-#         if st.button(f"👍 Лайк ({len(news['likes'])})", key=f"like_{news['id']}"):
-#             user = "ТестовыйНик"
-#             if user not in news['likes']:
-#                 news['likes'].append(user)
-#                 if user in news['dislikes']:
-#                     news['dislikes'].remove(user)
-#     with col2:
-#         if st.button(f"👎 Дизлайк ({len(news['dislikes'])})", key=f"dislike_{news['id']}"):
-#             user = "ТестовыйНик"
-#             if user not in news['dislikes']:
-#                 news['dislikes'].append(user)
-#                 if user in news['likes']:
-#                     news['likes'].remove(user)
-
-#     # Имена лайкнувших и дизлайкнувших
-#     st.write("Лайкнули:", ", ".join(news['likes']))
-#     st.write("Дизлайкнули:", ", ".join(news['dislikes']))
-
-#     # Комментарии
-#     st.subheader("Комментарии")
-#     for c in news['comments']:
-#         c_cols = st.columns([1, 5])
-#         with c_cols[0]:
-#             st.image(c['avatar'], width=30)
-#         with c_cols[1]:
-#             st.write(f"**{c['nick']}**: {c['text']}")
-
-#     # Кнопки редактирования/удаления (условно, автор или мастер)
-#     if st.button(f"Редактировать (id={news['id']})"):
-#         st.info("Редактирование пока не реализовано")
-#     if st.button(f"Удалить (id={news['id']})"):
-#         news['status'] = "Неактуален"
-#         st.success("Новость скрыта")
-
 def library():
     ss = st.session_state
     if "library_page" not in ss:
@@ -652,7 +547,9 @@ def library():
             st.rerun()
     def create_library_item():
         st.title("Создание статьи")
-
+        if st.button("⬅ Отмена"):
+            ss.library_page = "list_of_all_items"
+            st.rerun()
         title = st.text_input("Название")
 
         type_ = st.selectbox(
@@ -699,8 +596,7 @@ st.sidebar.title("Меню")
 if name:
     st.sidebar.caption(f"Пользователь: {name}")
 authenticator.logout("Выйти", location="sidebar", key="Logout", use_container_width=True)
-section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости"])
-section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека", "Создать статью",  "Галерея персонажей"])
+section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека", "Галерея персонажей"])
 
 if section == "Профиль":
     Profile()
@@ -708,5 +604,3 @@ elif section == "Библиотека":
     library()
 elif section == "Галерея персонажей":
     character_gallery()
-#elif section == "Новости":
-#    News()
