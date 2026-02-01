@@ -235,6 +235,8 @@ def Profile():
                     st.rerun()
             with col_plus:
                 if st.button('plus', key="hunger_plus"):
+                    st.session_state.hunger_value = max(0, st.session_state.hunger_value + 1)
+                    user["stats"]["hunger"] = st.session_state.hunger_value
                     api.put_user(user)
                     st.rerun()
 
