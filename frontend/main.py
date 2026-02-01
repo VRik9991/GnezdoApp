@@ -1,12 +1,18 @@
+import sys
+from pathlib import Path
+
 import streamlit as st
 import pandas as pd
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from api.backend_api import APIClient
 import streamlit_authenticator as stauth
 import hashlib
 import yaml
 import random
-from pathlib import Path
 
 st.set_page_config(initial_sidebar_state="collapsed")
 
@@ -83,6 +89,7 @@ def Profile():
     
     if authentication_status:
         user = api.get_user(st.session_state.get("username"))
+        st.write(user)
         character = {
             "photo": user["foto"],
             "name": user["character_name"],
@@ -219,14 +226,18 @@ def Profile():
         with colB:
             st.metric("Голод", f"{st.session_state.hunger_value} / 10")
             col_minus, col_plus = st.columns([1, 1])
+            
             with col_minus:
                 if st.button('minus', key="hunger_minus"):
                     st.session_state.hunger_value = max(0, st.session_state.hunger_value - 1)
+                    user["stats"]["hunger"] = st.session_state.hunger_value
+                    api.put_user(user)
                     st.rerun()
             with col_plus:
                 if st.button('plus', key="hunger_plus"):
-                    st.session_state.hunger_value = min(10, st.session_state.hunger_value + 1)
+                    api.put_user(user)
                     st.rerun()
+
 
         # ---------------------------- Сила / Стамина ----------------------------
 
