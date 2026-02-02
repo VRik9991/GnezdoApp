@@ -1,11 +1,9 @@
 import streamlit as st
-import pandas as pd
-
+from datetime import datetime
+import base64
 from api.backend_api import APIClient
 import streamlit_authenticator as stauth
-import hashlib
 import yaml
-import random
 from pathlib import Path
 
 st.set_page_config(initial_sidebar_state="collapsed")
@@ -25,7 +23,7 @@ def _hide_sidebar() -> None:
 _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
-
+ss = st.session_state
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
     usernames = (((auth_config or {}).get("credentials") or {}).get("usernames") or {})
@@ -49,7 +47,6 @@ def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
 
 api = APIClient("http://localhost:8000")
 _hashed_any = _maybe_hash_passwords_inplace(config)
-
 authenticator = stauth.Authenticate(
         api.user_credentials(),
         config['cookie']['name'],
@@ -57,15 +54,14 @@ authenticator = stauth.Authenticate(
         config['cookie']['expiry_days'],
     )
 
-
 _login_title = st.empty()
 _login_caption = st.empty()
 _login_title.title("Вход")
 
 authenticator.login(location="main", key="Login")
-name = st.session_state.get("name")
-authentication_status = st.session_state.get("authentication_status")
-username = st.session_state.get("username")
+name = ss.get("name")
+authentication_status = ss.get("authentication_status")
+username = ss.get("username")
 
 if authentication_status is True:
     _login_title.empty()
@@ -78,11 +74,10 @@ if authentication_status is not True:
         st.error("Неверный логин или пароль.")
     st.stop()
 
-# ---- Создаём аутентификатор ----
-def Profile():
-    
+def profile(getting_username):
+
     if authentication_status:
-        user = api.get_user(st.session_state.get("username"))
+        user = api.get_user(getting_username)
         character = {
             "photo": user["foto"],
             "name": user["character_name"],
@@ -138,7 +133,10 @@ def Profile():
 
         # ---- Фото ----
         with col1:
-            st.image(character["photo"], width=230)
+            try:
+                st.image(character["photo"], width=230)
+            except:
+                pass
 
         # ---- Инфо ----
         with col2:
@@ -166,13 +164,13 @@ def Profile():
         st.divider()
         # =========================================================
 
-        
+
         if "hunger_value" not in st.session_state:
             st.session_state.hunger_value = user['stats']["hunger"]
 
         @st.dialog("Клан")
         def modal_klan():
-            st.write(user['stats']["klan_hint"])
+            st.write(user["clan"])
 
         @st.dialog("Сир")
         def modal_sir_namee():
@@ -190,7 +188,7 @@ def Profile():
 
         with col1:
             st.subheader("Клан")
-            st.write(f"**{user['stats']['klan']}**")
+            st.write(f"**{user["clan"]}**")
             st.button("Подсказка", key="klan_hint_btn", on_click=modal_klan)
 
         with col2:
@@ -446,87 +444,186 @@ def Profile():
             filtered.append(news)
         return sorted(filtered, key=lambda x: x['created'], reverse=True)
 
-# #def News():
-#     st.sidebar.title("Фильтры новостей")
-#     hide_non_masters = st.sidebar.checkbox("Скрыть новости не от мастеров")
-#     hide_nicks = st.sidebar.text_input("Скрыть новости от ников (через запятую)").split(",")
-#     hide_nicks = [nick.strip() for nick in hide_nicks if nick.strip()]
+def library():
+    if "library_page" not in ss:
+        ss.library_page = "list_of_all_items"
+        ss.item = {}
+    def list_of_all_items():
+        items = api.get_library()
 
-#     news_to_show = filter_news(news_db, hide_non_masters, hide_nicks)
+        if st.button("Создать статью"):
+            ss.library_page = "create_library_item"
+            st.rerun()
 
-#     for news in news_to_show:
-#         st.markdown("---")
-#         cols = st.columns([1, 5])
-#         with cols[0]:
-#             st.image(news['avatar'], width=50)
-#         with cols[1]:
-#             st.subheader(f"{news['author']} — {news['title']}")
-#             st.write(news['content'][:100] + "...")  # Обрезанное содержание
-#             if st.button(f"Читать полностью (id={news['id']})"):
-#                 show_full_news(news)
+        st.title("📚 Библиотека")
 
-# #def show_full_news(news):
-#     st.markdown("---")
-#     cols = st.columns([1, 5])
-#     with cols[0]:
-#         st.image(news['avatar'], width=70)
-#     with cols[1]:
-#         st.subheader(news['author'])
+        if not items:
+            st.info("Статей нет")
+        else:
+            cols = st.columns(3)
 
-#     # IT-комментарий (для мастеров)
-#     st.text_area("IT-комментарий (ИТ:)", "")
+            for i, article in enumerate(items):
+                with cols[i % 3]:
+                    with st.container(border=True):
+                        st.subheader(article.get("name") or "Без названия")
+                        st.caption(f'Тип: {article.get("item_type")}')
+                        try:
+                            st.image(base64.b64decode(article["picture"]), caption="Загруженное изображение")
+                        except:
+                            pass
+                        if st.button("Открыть полностью", key=article.get("_id")):
+                            ss.library_page = "full_version_of_item"
+                            ss.item = article
+                            st.rerun()
+    def full_version_of_item(article):
 
-#     # Полное содержание
-#     st.write(news['content'])
+        if st.button("⬅ Назад"):
+            ss.library_page = "list_of_all_items"
+            st.rerun()
 
-#     # Место для картинки (пока просто выводим аватар)
-#     st.image(news['avatar'], width=200)
+        st.title(article.get("name") or "Без названия")
+        st.caption(
+            f'{article.get("item_type")} • '
+            f'{article.get("author")} • '
+            f'{article.get("date")}'
+        )
 
-#     # Лайки и дизлайки
-#     col1, col2 = st.columns(2)
-#     with col1:
-#         if st.button(f"👍 Лайк ({len(news['likes'])})", key=f"like_{news['id']}"):
-#             user = "ТестовыйНик"
-#             if user not in news['likes']:
-#                 news['likes'].append(user)
-#                 if user in news['dislikes']:
-#                     news['dislikes'].remove(user)
-#     with col2:
-#         if st.button(f"👎 Дизлайк ({len(news['dislikes'])})", key=f"dislike_{news['id']}"):
-#             user = "ТестовыйНик"
-#             if user not in news['dislikes']:
-#                 news['dislikes'].append(user)
-#                 if user in news['likes']:
-#                     news['likes'].remove(user)
+        try:
+            st.image(
+                base64.b64decode(article["picture"]),
+                caption="Загруженное изображение"
+            )
+        except:
+            pass
 
-#     # Имена лайкнувших и дизлайкнувших
-#     st.write("Лайкнули:", ", ".join(news['likes']))
-#     st.write("Дизлайкнули:", ", ".join(news['dislikes']))
+        st.divider()
+        st.write(article.get("item_text") or "_Текст отсутствует_")
+        st.divider()
+        if st.button("Редактировать"):
+            ss.library_page = "edit"
+            st.rerun()
+    def edit():
+        article = ss.item
+        if st.button("⬅ Отмена"):
+            ss.library_page = "full_version_of_item"
+            st.rerun()
+        st.title("Редактирование статьи")
 
-#     # Комментарии
-#     st.subheader("Комментарии")
-#     for c in news['comments']:
-#         c_cols = st.columns([1, 5])
-#         with c_cols[0]:
-#             st.image(c['avatar'], width=30)
-#         with c_cols[1]:
-#             st.write(f"**{c['nick']}**: {c['text']}")
+        title = st.text_input("Название", article["name"])
 
-#     # Кнопки редактирования/удаления (условно, автор или мастер)
-#     if st.button(f"Редактировать (id={news['id']})"):
-#         st.info("Редактирование пока не реализовано")
-#     if st.button(f"Удалить (id={news['id']})"):
-#         news['status'] = "Неактуален"
-#         st.success("Новость скрыта")
+        type_ = st.selectbox(
+            "Тип",
+            ["Lore", "Game text", "Rule"],
+            ["Lore", "Game text", "Rule"].index(article["item_type"])
+        )
 
+        access = st.selectbox(
+            "Доступ",
+            ['Player', 'Game technician', 'Macronosphere', 'Master'],
+            ['Player', 'Game technician', 'Macronosphere', 'Master'].index(article["access"])
+        )
+
+        text = st.text_area(
+            "Полный текст",
+            article["item_text"],
+            height=400
+        )
+        picture = st.file_uploader(
+            "Выберите изображение",
+            type=["png", "jpg", "jpeg", "webp"],
+        )
+        if picture:
+            based_picture = base64.b64encode(picture.getvalue()).decode('utf-8')
+        else:
+            based_picture = None
+        if st.button("Сохранить"):
+            api.edit_library_item(article["_id"], title, type_, text, access, based_picture)
+            ss.library_page = "list_of_all_items"
+            st.rerun()
+    def create_library_item():
+        st.title("Создание статьи")
+        if st.button("⬅ Отмена"):
+            ss.library_page = "list_of_all_items"
+            st.rerun()
+        title = st.text_input("Название")
+
+        type_ = st.selectbox(
+            "Тип",
+            ["Lore", "Game text", "Rule"]
+        )
+
+        access = st.selectbox(
+            "Доступ",
+            ['Player', 'Game technician', 'Macronosphere', 'Master']
+        )
+
+        text = st.text_area(
+            "Полный текст",
+            height=400
+        )
+        picture = st.file_uploader(
+            "Выберите изображение",
+            type=["png", "jpg", "jpeg", "webp"]
+        )
+        if st.button("Сохранить"):
+            api.create_library_item(title, type_, text, str(datetime.now()), access, "Aboba",
+                                    base64.b64encode(picture.getvalue()).decode('utf-8'))
+
+    current_user = {
+        "name": "Альдрик ван Хольц",
+        "role": "Master",  # Игрок | Мастер | Игротех | Макроносфер
+    }
+
+    if ss.library_page == "list_of_all_items":
+        list_of_all_items()
+    elif ss.library_page == "full_version_of_item":
+        full_version_of_item(ss.item)
+    elif ss.library_page == "edit":
+        edit()
+    elif ss.library_page == "create_library_item":
+        create_library_item()
+
+def character_gallery():
+    if "gallery_page" not in ss:
+        ss.gallery_page = "previews"
+        ss.item = {}
+    def characters_previews():
+        characters = api.get_all_characters_preview()
+        cols = st.columns(3)
+        for i, char in enumerate(characters["characters_preview"].values()):
+            with cols[i % 3]:
+                with st.container(border=True):
+                    try:
+                        img_bytes = base64.b64decode(char["foto"])
+                        st.image(img_bytes)
+                    except:
+                        pass
+                    st.subheader(char["character_name"])
+                    st.caption(f"Игрок: {char['username']}")
+                    st.caption(f"Клан: {char['clan']}")
+                    if st.button("Открыть полностью", key=char.get("_id")):
+                        print("aboba")
+                        ss.gallery_page = "character_profile"
+                        ss.opened_character = char['email']
+                        st.rerun()
+
+    if ss.gallery_page == "previews":
+        characters_previews()
+    elif ss.gallery_page == "character_profile":
+        if st.button("⬅ Назад"):
+            ss.gallery_page = "previews"
+            st.rerun()
+        profile(ss.opened_character)
 
 st.sidebar.title("Меню")
 if name:
     st.sidebar.caption(f"Пользователь: {name}")
 authenticator.logout("Выйти", location="sidebar", key="Logout", use_container_width=True)
-section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости"])
+section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека", "Галерея персонажей"])
 
 if section == "Профиль":
-    Profile()
-#elif section == "Новости":
-#    News() 
+    profile(ss.get("username"))
+elif section == "Библиотека":
+    library()
+elif section == "Галерея персонажей":
+    character_gallery()

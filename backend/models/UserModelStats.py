@@ -1,7 +1,6 @@
-from pydantic  import BaseModel
+from pydantic import BaseModel
 
 class UserModelStats(BaseModel):
-    klan: str
     sir_name: str
     generation: int
     generation_mod:int

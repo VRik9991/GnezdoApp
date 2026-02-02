@@ -4,6 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 import os
 from backend.models.UserModel import UserModel
+from backend.models.LibraryItemModel import LibraryItemModel
 
 
 MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
@@ -21,9 +22,10 @@ async def init_db() -> None:
     if _client is None:
         _client = AsyncIOMotorClient(MONGO_URI)
     await init_beanie(
-        database=_client["users"],
+        database=_client["Gnezdo"],
         document_models=[
             UserModel,
+            LibraryItemModel
         ]
     )
     _initialized = True
