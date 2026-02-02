@@ -1,6 +1,6 @@
 import base64
 from os import access
-from typing import Optional
+from typing import Optional, Literal
 import logging
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -8,12 +8,15 @@ from bson import ObjectId
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from backend.Interfaces.ClanModel import ClanNames, ClanModel
 from backend.Interfaces.CreateLibraryItemInterface import CreateLibraryItemInterface
+from backend.models.LibraryItemModel import LibraryItemModel, LibraryItemType
 from backend.models.UserModel import UserModel
 from backend.models.UserModelStats import UserModelStats
-from backend.models.LibraryItemModel import LibraryItemModel, LibraryItemType, LibraryAccessType
 from backend.models.UserModelStats import UserModelStats
 from backend.models.initDB import init_db
+from backend.utils.UserUtilsTypes import UserType
+
 
 async def lifespan(app : FastAPI):
     await init_db()
@@ -29,6 +32,16 @@ app = FastAPI(
     dependencies=[Depends(ensure_db)],
 )
 
+@app.post("/clan")
+async  def create_clan(
+        name: ClanNames,
+    description: str):
+    clan = ClanModel(
+        name=name,
+        description=description
+    )
+    await clan.save()
+    return clan
 @app.get("/user_credentials")
 async def user_credentials():
     users_credentials = dict()
@@ -60,7 +73,8 @@ async def create_user(
     stats: UserModelStats,
     email: str,
     password: str,
-    role: list[str]
+    role: UserType,
+    clan: ClanNames
 ):
     user = UserModel(
         foto=foto,
@@ -73,7 +87,8 @@ async def create_user(
         stats=stats,
         email=email,
         password=password,
-        role=role
+        role=role,
+        clan=clan
     )
     await user.save()
     return user
@@ -86,9 +101,19 @@ async def read_user(email: str):
         raise HTTPException(status_code=404, detail="User not found")
     return user
 
-@app.get("/users")
-async def get_all_character():
-    pass
+@app.get("/users_characters_preview")
+async def get_all_characters_preview():
+    characters_preview = dict()
+    for user in await UserModel.find_all().to_list():
+        characters_preview[user.email] = {
+            "_id": str(user.id),
+            "foto": user.foto,
+            "character_name": user.character_name,
+            "username": user.name,
+            "clan": user.clan,
+            "email": user.email}
+
+    return {"characters_preview": characters_preview}
 
 @app.put("/user")
 async def update_user(
@@ -169,7 +194,7 @@ class PutItemModel(BaseModel):
     name: str
     item_text: str
     item_type: LibraryItemType
-    access: LibraryAccessType
+    access: UserType
     picture: bytes | None
 
 @app.put("/library")

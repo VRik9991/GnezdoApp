@@ -1,12 +1,9 @@
 import streamlit as st
 from datetime import datetime
-import pandas as pd
 import base64
 from api.backend_api import APIClient
 import streamlit_authenticator as stauth
-import hashlib
 import yaml
-import random
 from pathlib import Path
 
 st.set_page_config(initial_sidebar_state="collapsed")
@@ -26,7 +23,7 @@ def _hide_sidebar() -> None:
 _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
-
+ss = st.session_state
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
     usernames = (((auth_config or {}).get("credentials") or {}).get("usernames") or {})
@@ -62,9 +59,9 @@ _login_caption = st.empty()
 _login_title.title("Вход")
 
 authenticator.login(location="main", key="Login")
-name = st.session_state.get("name")
-authentication_status = st.session_state.get("authentication_status")
-username = st.session_state.get("username")
+name = ss.get("name")
+authentication_status = ss.get("authentication_status")
+username = ss.get("username")
 
 if authentication_status is True:
     _login_title.empty()
@@ -77,11 +74,10 @@ if authentication_status is not True:
         st.error("Неверный логин или пароль.")
     st.stop()
 
-# ---- Создаём аутентификатор ----
-def Profile():
-    
+def profile(getting_username):
+
     if authentication_status:
-        user = api.get_user(st.session_state.get("username"))
+        user = api.get_user(getting_username)
         character = {
             "photo": user["foto"],
             "name": user["character_name"],
@@ -137,7 +133,10 @@ def Profile():
 
         # ---- Фото ----
         with col1:
-            st.image(character["photo"], width=230)
+            try:
+                st.image(character["photo"], width=230)
+            except:
+                pass
 
         # ---- Инфо ----
         with col2:
@@ -171,7 +170,7 @@ def Profile():
 
         @st.dialog("Клан")
         def modal_klan():
-            st.write(user['stats']["klan_hint"])
+            st.write(user["clan"])
 
         @st.dialog("Сир")
         def modal_sir_namee():
@@ -189,7 +188,7 @@ def Profile():
 
         with col1:
             st.subheader("Клан")
-            st.write(f"**{user['stats']['klan']}**")
+            st.write(f"**{user["clan"]}**")
             st.button("Подсказка", key="klan_hint_btn", on_click=modal_klan)
 
         with col2:
@@ -446,7 +445,6 @@ def Profile():
         return sorted(filtered, key=lambda x: x['created'], reverse=True)
 
 def library():
-    ss = st.session_state
     if "library_page" not in ss:
         ss.library_page = "list_of_all_items"
         ss.item = {}
@@ -586,7 +584,36 @@ def library():
         create_library_item()
 
 def character_gallery():
-    pass
+    if "gallery_page" not in ss:
+        ss.gallery_page = "previews"
+        ss.item = {}
+    def characters_previews():
+        characters = api.get_all_characters_preview()
+        cols = st.columns(3)
+        for i, char in enumerate(characters["characters_preview"].values()):
+            with cols[i % 3]:
+                with st.container(border=True):
+                    try:
+                        img_bytes = base64.b64decode(char["foto"])
+                        st.image(img_bytes)
+                    except:
+                        pass
+                    st.subheader(char["character_name"])
+                    st.caption(f"Игрок: {char['username']}")
+                    st.caption(f"Клан: {char['clan']}")
+                    if st.button("Открыть полностью", key=char.get("_id")):
+                        print("aboba")
+                        ss.gallery_page = "character_profile"
+                        ss.opened_character = char['email']
+                        st.rerun()
+
+    if ss.gallery_page == "previews":
+        characters_previews()
+    elif ss.gallery_page == "character_profile":
+        if st.button("⬅ Назад"):
+            ss.gallery_page = "previews"
+            st.rerun()
+        profile(ss.opened_character)
 
 st.sidebar.title("Меню")
 if name:
@@ -595,7 +622,7 @@ authenticator.logout("Выйти", location="sidebar", key="Logout", use_contain
 section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости", "Библиотека", "Галерея персонажей"])
 
 if section == "Профиль":
-    Profile()
+    profile(ss.get("username"))
 elif section == "Библиотека":
     library()
 elif section == "Галерея персонажей":

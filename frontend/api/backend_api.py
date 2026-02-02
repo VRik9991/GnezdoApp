@@ -30,14 +30,19 @@ class APIClient:
             )
             print(response.status_code)
             print(response.json())
+
     def get_character(self):
         pass
-    def get_all_character(self):
-        pass
+
+    def get_all_characters_preview(self):
+        return self._get("/users_characters_preview")
+
     def create_library_item(self, name: str, item_type: str, item_text: str, date: str, access: str, author: str, picture: str):
         return self._post("/library", {"name": name, "item_text": item_text, "item_type": item_type, "date": date, "access": access, "author": author, "picture": picture})
+
     def get_library(self):
         return self._get("/library/all")
+
     def edit_library_item(self, id, name: str, item_type: str, item_text: str, access: str, picture: str):
         return self._put("/library", {"id": id, "name": name, "item_text": item_text, "item_type": item_type, "access": access, "picture": picture})
 

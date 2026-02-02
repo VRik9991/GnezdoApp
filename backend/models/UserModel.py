@@ -3,9 +3,9 @@ from typing import Literal
 from beanie import Document
 from pydantic import field_validator
 
+from backend.Interfaces.ClanModel import ClanModel, ClanNames
 from backend.models.UserModelStats import UserModelStats
-
-Role = Literal['Player', 'Game technician', 'Macronosphere', 'Master']
+from backend.utils.UserUtilsTypes import UserType
 
 
 class UserModel(Document):
@@ -19,16 +19,8 @@ class UserModel(Document):
     stats: UserModelStats
     email:str
     password:str
-    role: list[Role]
-
-    @field_validator("role", mode="before")
-    @classmethod
-    def coerce_role(cls, value):
-        if value is None:
-            return []
-        if isinstance(value, str):
-            return [value]
-        return value
+    role: UserType
+    clan: ClanNames
 
     class Settings:
         name = "users"

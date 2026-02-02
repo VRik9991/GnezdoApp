@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
-from backend.models.LibraryItemModel import LibraryItemType, LibraryAccessType
+from backend.models.LibraryItemModel import LibraryItemType
+from backend.utils.UserUtilsTypes import UserType
 
 
 class CreateLibraryItemInterface(BaseModel):
@@ -8,6 +9,6 @@ class CreateLibraryItemInterface(BaseModel):
     item_type: LibraryItemType
     item_text: str
     date: str
-    access: LibraryAccessType
+    access: UserType
     author: str
     picture: bytes
