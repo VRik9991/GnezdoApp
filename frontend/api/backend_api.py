@@ -14,6 +14,15 @@ class APIClient:
             return response.json()
 
 
+    def _put(self, path: str, json: Optional[dict[str, Any]] = None) -> Any:
+        if not path.startswith("/"):
+            path = f"/{path}"
+        with httpx.Client(base_url=self.base_url) as client:
+            response = client.put(path, json=json)
+            response.raise_for_status()
+            return response.json()        
+
+
 
     def _post(self, path, json):
         with httpx.Client() as client:
@@ -32,3 +41,6 @@ class APIClient:
     
     def get_user(self, email: str):
         return self._get("/user", {"email": email})
+    
+    def put_user(self, data: dict):
+        return self._put("/user", data)

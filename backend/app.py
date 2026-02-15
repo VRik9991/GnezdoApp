@@ -1,9 +1,25 @@
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
+from pydantic import BaseModel, ConfigDict
 from backend.models.UserModel import UserModel
 from backend.models.UserModelStats import UserModelStats
 from backend.models.initDB import init_db
+
+
+class UserUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    email: str
+    foto: Optional[str] = None
+    character_name: Optional[str] = None
+    other_character_name: Optional[str] = None
+    name: Optional[str] = None
+    last_name: Optional[str] = None
+    tg_name: Optional[str] = None
+    status: Optional[str] = None
+    stats: Optional[UserModelStats] = None
+    password: Optional[str] = None
+    role: Optional[list[str]] = None
 
 async def lifespan(app : FastAPI):
     await init_db()
@@ -79,46 +95,20 @@ async def read_user(email: str):
     return user
 
 @app.put("/user")
-async def update_user(
-    name: str,
-    new_foto: Optional[str] = None,
-    new_character_name: Optional[str] = None,
-    new_other_character_name: Optional[str] = None,
-    new_name: Optional[str] = None,
-    new_last_name: Optional[str] = None,
-    new_status: Optional[str] = None,
-    new_tg_name: Optional[str] = None,
-    new_stats: Optional[UserModelStats] = None,
-    new_email: Optional[str] = None,
-    new_password: Optional[str] = None,
-):
-    user = await read_user(name)
-    if new_foto is not None:
-        user.foto = new_foto
-    if new_character_name is not None:
-        user.character_name = new_character_name
-    if new_other_character_name is not None:
-        user.other_character_name = new_other_character_name
-    if new_name is not None:
-        user.name = new_name
-    if new_last_name is not None:
-        user.last_name = new_last_name
-    if new_status is not None:
-        user.status = new_status
-    if new_tg_name is not None:
-        user.tg_name = new_tg_name
-    if new_stats is not None:
-        user.stats = new_stats
-    if new_email is not None:
-        user.email = new_email
-    if new_password is not None:
-        user.password = new_password
+async def update_user(payload: UserUpdate):
+    user = await UserModel.find_one(UserModel.email == payload.email)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    updates = payload.model_dump(exclude_unset=True)
+    updates.pop("email", None)
+    for key, value in updates.items():
+        setattr(user, key, value)
     await user.save()
     return user
 
 @app.delete("/user")
-async def delete_user(name:str):
-    user = await read_user(name)
+async def delete_user(email: str):
+    user = await read_user(email)
     await user.delete()
     return {"detail": "User deleted"}
 
