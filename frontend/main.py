@@ -13,6 +13,7 @@ import streamlit_authenticator as stauth
 import hashlib
 import yaml
 import random
+import json
 
 st.set_page_config(initial_sidebar_state="collapsed")
 
@@ -31,6 +32,28 @@ def _hide_sidebar() -> None:
 _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
+
+@st.cache_data(show_spinner=False)
+def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
+    path = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
+    if not path.exists():
+        return {}, {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    discipline_map: dict[str, str] = {}
+    power_map: dict[str, str] = {}
+    for discipline in data.get("disciplines", []):
+        name = discipline.get("name", {})
+        en = name.get("en")
+        ru = name.get("ru")
+        if isinstance(en, str) and isinstance(ru, str):
+            discipline_map[en] = ru
+        for sub in discipline.get("поддисциплины", []) or []:
+            sub_name = sub.get("name", {})
+            sub_en = sub_name.get("en")
+            sub_ru = sub_name.get("ru")
+            if isinstance(sub_en, str) and isinstance(sub_ru, str):
+                power_map[sub_en] = sub_ru
+    return discipline_map, power_map
 
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
@@ -90,6 +113,28 @@ def Profile():
     if authentication_status:
         user = api.get_user(st.session_state.get("username"))
         st.write(user)
+
+        raw_disciplines = (user.get("stats") or {}).get("disciplines") or []
+        discipline_name_ru, power_name_ru = _load_discipline_translations()
+        clan_name_ru = {
+            # Extend this map with your clan translations as needed.
+            "Nocturne": "Ноктюрн",
+        }
+        clan_display = clan_name_ru.get((user.get("stats") or {}).get("clan"), (user.get("stats") or {}).get("clan"))
+        disciplines_map = {}
+        for item in raw_disciplines:
+            discipline_name = item.get("discipline_en") or "Unknown discipline"
+            discipline_name = discipline_name_ru.get(discipline_name, discipline_name)
+            power_name = item.get("power_en") or "Unknown power"
+            power_name = power_name_ru.get(power_name, power_name)
+            disciplines_map.setdefault(discipline_name, []).append(
+                {
+                    "name": power_name,
+                    "level": item.get("level") or 0,
+                    "description": item.get("description") or "",
+                }
+            )
+
         character = {
             "photo": user["foto"],
             "name": user["character_name"],
@@ -98,27 +143,7 @@ def Profile():
             "shreknet": user["tg_name"],
             "status": "Активен",        # или "Торпор"
             "is_torpor": False,          # включи True — появится кнопка выхода
-        "disciplines": {
-                "Доминирование": [
-                    {
-                        "name": "Взгляд хищника",
-                        "level": 1,
-                        "description": "Цель ощущает давление воли персонажа.",
-                    },
-                    {
-                        "name": "Команда",
-                        "level": 2,
-                        "description": "Краткий приказ, которому сложно сопротивляться.",
-                    },
-                ],
-                "Стойкость": [
-                    {
-                        "name": "Каменная плоть",
-                        "level": 1,
-                        "description": "Тело становится устойчивее к урону.",
-                    }
-                ],
-            },
+            "disciplines": disciplines_map,
             "morality": {
                 "humanity": 7,
                 "feeding": "Согласованное",
@@ -178,8 +203,8 @@ def Profile():
             st.session_state.hunger_value = user['stats']["hunger"]
 
         @st.dialog("Клан")
-        def modal_klan():
-            st.write(user['stats']["klan_hint"])
+        def modal_clan():
+            st.write(user['stats']["clan_hint"])
 
         @st.dialog("Сир")
         def modal_sir_namee():
@@ -197,8 +222,8 @@ def Profile():
 
         with col1:
             st.subheader("Клан")
-            st.write(f"**{user['stats']['klan']}**")
-            st.button("Подсказка", key="klan_hint_btn", on_click=modal_klan)
+            st.write(f"**{clan_display}**")
+            st.button("Подсказка", key="clan_hint_btn", on_click=modal_clan)
 
         with col2:
             st.subheader("Сир")
@@ -307,13 +332,15 @@ def Profile():
 
         @st.dialog("Способность")
         def ability_dialog(name, discipline, level, description):
-            st.markdown(f"""
-        **Название:** {name}  
-        **Дисциплина:** {discipline}  
-        **Уровень:** {level}
-        
-        {description}
-        """)
+            st.markdown(
+                f"""
+**????????:** {name}  
+**??????????:** {discipline}  
+**???????:** {level}
+"""
+            )
+            if description:
+                st.markdown(description)
 
         st.button(
             "➕ Заявка на изучение дисциплины",

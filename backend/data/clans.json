@@ -1,0 +1,20 @@
+{
+  "clans": [
+    { "en": "Banu Haqim", "ru": "Бану Хаким", "dis": [{ "en": "Blood Sorcery", "ru": "Кровавое колдовство" }, { "en": "Celerity", "ru": "Стремительность" }, { "en": "Obfuscate", "ru": "Затемнение" }] },
+    { "en": "Brujah", "ru": "Бруха", "dis": [{ "en": "Celerity", "ru": "Стремительность" }, { "en": "Potence", "ru": "Могущество" }, { "en": "Presence", "ru": "Величие" }] },
+    { "en": "Caitiff", "ru": "Каитифф", "dis": [{ "en": "Any 3 disciplines (player choice)", "ru": "Любые 3 дисциплины (выбор игрока)" }] },
+    { "en": "Gangrel", "ru": "Гангрел", "dis": [{ "en": "Animalism", "ru": "Анимализм" }, { "en": "Fortitude", "ru": "Стойкость" }, { "en": "Protean", "ru": "Протеизм" }] },
+    { "en": "Hecata", "ru": "Геката", "dis": [{ "en": "Auspex", "ru": "Прорицание" }, { "en": "Fortitude", "ru": "Стойкость" }, { "en": "Oblivion", "ru": "Забвение" }] },
+    { "en": "Lasombra", "ru": "Ласомбра", "dis": [{ "en": "Dominate", "ru": "Доминирование" }, { "en": "Oblivion", "ru": "Забвение" }, { "en": "Potence", "ru": "Могущество" }] },
+    { "en": "Malkavian", "ru": "Малкавиан", "dis": [{ "en": "Auspex", "ru": "Прорицание" }, { "en": "Dominate", "ru": "Доминирование" }, { "en": "Obfuscate", "ru": "Затемнение" }] },
+    { "en": "Ministry", "ru": "Министерство", "dis": [{ "en": "Obfuscate", "ru": "Затемнение" }, { "en": "Presence", "ru": "Величие" }, { "en": "Protean", "ru": "Протеизм" }] },
+    { "en": "Nosferatu", "ru": "Носферату", "dis": [{ "en": "Animalism", "ru": "Анимализм" }, { "en": "Obfuscate", "ru": "Затемнение" }, { "en": "Potence", "ru": "Могущество" }] },
+    { "en": "Ravnos", "ru": "Равнос", "dis": [{ "en": "Animalism", "ru": "Анимализм" }, { "en": "Obfuscate", "ru": "Затемнение" }, { "en": "Presence", "ru": "Величие" }] },
+    { "en": "Salubri", "ru": "Салюбри", "dis": [{ "en": "Auspex", "ru": "Прорицание" }, { "en": "Dominate", "ru": "Доминирование" }, { "en": "Fortitude", "ru": "Стойкость" }] },
+    { "en": "Thin-Blood", "ru": "Тонкокровные", "dis": [{ "en": "Thin-blood Alchemy", "ru": "Тонкокровная алхимия" }] },
+    { "en": "Toreador", "ru": "Тореадор", "dis": [{ "en": "Auspex", "ru": "Прорицание" }, { "en": "Celerity", "ru": "Стремительность" }, { "en": "Presence", "ru": "Величие" }] },
+    { "en": "Tremere", "ru": "Тремер", "dis": [{ "en": "Auspex", "ru": "Прорицание" }, { "en": "Blood Sorcery", "ru": "Кровавое колдовство" }, { "en": "Dominate", "ru": "Доминирование" }] },
+    { "en": "Tzimisce", "ru": "Цимисхи", "dis": [{ "en": "Animalism", "ru": "Анимализм" }, { "en": "Dominate", "ru": "Доминирование" }, { "en": "Protean", "ru": "Протеизм" }] },
+    { "en": "Ventrue", "ru": "Вентру", "dis": [{ "en": "Dominate", "ru": "Доминирование" }, { "en": "Fortitude", "ru": "Стойкость" }, { "en": "Presence", "ru": "Величие" }] }
+  ]
+}
