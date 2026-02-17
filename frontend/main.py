@@ -1,6 +1,6 @@
-import sys
+﻿import sys
 from pathlib import Path
-
+import os
 import streamlit as st
 import pandas as pd
 
@@ -8,6 +8,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from backend.data.clans import ALL_CLANS
 from api.backend_api import APIClient
 import streamlit_authenticator as stauth
 import hashlib
@@ -41,18 +42,80 @@ def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
     data = json.loads(path.read_text(encoding="utf-8"))
     discipline_map: dict[str, str] = {}
     power_map: dict[str, str] = {}
+
+    discipline_fallback_ru: dict[str, str] = {
+        "Umbrakinesis": "Умбракинез",
+        "Hematurgy": "Гематургия",
+        "Aethercraft": "Эфирокрафт",
+    }
+    power_fallback_ru: dict[str, str] = {
+        "Veil Step": "Шаг сквозь завесу",
+        "Sanguine Lattice": "Кровавая решетка",
+        "Crimson Tide": "Багровый прилив",
+        "Starbind": "Звездные узы",
+    }
+
+    def _is_placeholder_ru(value: object) -> bool:
+        if not isinstance(value, str):
+            return True
+        text = value.strip()
+        if not text:
+            return True
+        return set(text) <= {"?", " "}
+
     for discipline in data.get("disciplines", []):
+        if not isinstance(discipline, dict):
+            continue
         name = discipline.get("name", {})
         en = name.get("en")
         ru = name.get("ru")
-        if isinstance(en, str) and isinstance(ru, str):
-            discipline_map[en] = ru
-        for sub in discipline.get("поддисциплины", []) or []:
+        if isinstance(en, str):
+            en = en.strip()
+            ru_value = ru.strip() if isinstance(ru, str) else ""
+            if ru_value and not _is_placeholder_ru(ru_value):
+                discipline_map[en] = ru_value
+                discipline_map[en.casefold()] = ru_value
+            elif en in discipline_fallback_ru:
+                discipline_map[en] = discipline_fallback_ru[en]
+                discipline_map[en.casefold()] = discipline_fallback_ru[en]
+
+        sub_items = discipline.get("поддисциплины", []) or []
+        if not sub_items:
+            for value in discipline.values():
+                if not isinstance(value, list):
+                    continue
+                if any(
+                    isinstance(entry, dict)
+                    and isinstance(entry.get("name"), dict)
+                    and isinstance(entry["name"].get("en"), str)
+                    for entry in value
+                ):
+                    sub_items = value
+                    break
+
+        for sub in sub_items:
+            if not isinstance(sub, dict):
+                continue
             sub_name = sub.get("name", {})
             sub_en = sub_name.get("en")
             sub_ru = sub_name.get("ru")
-            if isinstance(sub_en, str) and isinstance(sub_ru, str):
-                power_map[sub_en] = sub_ru
+            if isinstance(sub_en, str):
+                sub_en = sub_en.strip()
+                sub_ru_value = sub_ru.strip() if isinstance(sub_ru, str) else ""
+                if sub_ru_value and not _is_placeholder_ru(sub_ru_value):
+                    power_map[sub_en] = sub_ru_value
+                    power_map[sub_en.casefold()] = sub_ru_value
+                elif sub_en in power_fallback_ru:
+                    power_map[sub_en] = power_fallback_ru[sub_en]
+                    power_map[sub_en.casefold()] = power_fallback_ru[sub_en]
+
+    for en, ru in discipline_fallback_ru.items():
+        discipline_map.setdefault(en, ru)
+        discipline_map.setdefault(en.casefold(), ru)
+    for en, ru in power_fallback_ru.items():
+        power_map.setdefault(en, ru)
+        power_map.setdefault(en.casefold(), ru)
+
     return discipline_map, power_map
 
 
@@ -110,23 +173,48 @@ if authentication_status is not True:
 # ---- Создаём аутентификатор ----
 def Profile():
     
+    
     if authentication_status:
         user = api.get_user(st.session_state.get("username"))
-        st.write(user)
+        
 
-        raw_disciplines = (user.get("stats") or {}).get("disciplines") or []
+        user_stats = user.get("stats") or {}
+        raw_disciplines = user_stats.get("disciplines") or []
         discipline_name_ru, power_name_ru = _load_discipline_translations()
-        clan_name_ru = {
-            # Extend this map with your clan translations as needed.
-            "Nocturne": "Ноктюрн",
-        }
-        clan_display = clan_name_ru.get((user.get("stats") or {}).get("clan"), (user.get("stats") or {}).get("clan"))
+
+        user_clan = user_stats.get("clan")
+        clan_display = "Неизвестный клан"
+
+        def _normalize_clan(value: object) -> str:
+            return str(value or "").strip().casefold().replace("_", " ").replace("-", " ")
+
+        user_clan_norm = _normalize_clan(user_clan)
+        for clan in ALL_CLANS:
+            if user_clan_norm and user_clan_norm in {
+                _normalize_clan(clan.key),
+                _normalize_clan(clan.name),
+                _normalize_clan(clan.name_ru),
+            }:
+                clan_display = clan.name_ru or clan.name
+                break
+
         disciplines_map = {}
         for item in raw_disciplines:
-            discipline_name = item.get("discipline_en") or "Unknown discipline"
-            discipline_name = discipline_name_ru.get(discipline_name, discipline_name)
-            power_name = item.get("power_en") or "Unknown power"
-            power_name = power_name_ru.get(power_name, power_name)
+            discipline_en = str(item.get("discipline_en") or "").strip()
+            power_en = str(item.get("power_en") or "").strip()
+
+            discipline_name = (
+                discipline_name_ru.get(discipline_en)
+                or discipline_name_ru.get(discipline_en.casefold())
+                or discipline_en
+                or "Unknown discipline"
+            )
+            power_name = (
+                power_name_ru.get(power_en)
+                or power_name_ru.get(power_en.casefold())
+                or power_en
+                or "Unknown power"
+            )
             disciplines_map.setdefault(discipline_name, []).append(
                 {
                     "name": power_name,
@@ -320,7 +408,7 @@ def Profile():
 
         st.button("Меня диаблерят", use_container_width=True, on_click=modal_diablerie)
 
-        # ДОПОЛНЕНИЕ: БЛОКИ 3–5 (Streamlit, совместимо с @st.dialog)
+        # ДОПОЛНЕНИЕ: БЛОКИ 3-5 (Streamlit, совместимо с @st.dialog)
         # ВСТАВЛЯТЬ В КОНЕЦ ФАЙЛА ПОСЛЕ БЛОКА 2
 
         # =========================================================
@@ -334,9 +422,9 @@ def Profile():
         def ability_dialog(name, discipline, level, description):
             st.markdown(
                 f"""
-**????????:** {name}  
-**??????????:** {discipline}  
-**???????:** {level}
+**Имя:** {name}  
+**Дисциплина:** {discipline}  
+**Уровень:** {level}
 """
             )
             if description:
@@ -570,3 +658,4 @@ if section == "Профиль":
     Profile()
 #elif section == "Новости":
 #    News() 
+
