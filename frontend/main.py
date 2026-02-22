@@ -1,12 +1,20 @@
+﻿import sys
+from pathlib import Path
+import os
 import streamlit as st
 import pandas as pd
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.data.clans import ALL_CLANS
 from api.backend_api import APIClient
 import streamlit_authenticator as stauth
 import hashlib
 import yaml
 import random
-from pathlib import Path
+import json
 
 st.set_page_config(initial_sidebar_state="collapsed")
 
@@ -25,6 +33,71 @@ def _hide_sidebar() -> None:
 _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
+
+
+
+    def _is_placeholder_ru(value: object) -> bool:
+        if not isinstance(value, str):
+            return True
+        text = value.strip()
+        if not text:
+            return True
+        return set(text) <= {"?", " "}
+
+    for discipline in data.get("disciplines", []):
+        if not isinstance(discipline, dict):
+            continue
+        name = discipline.get("name", {})
+        en = name.get("en")
+        ru = name.get("ru")
+        if isinstance(en, str):
+            en = en.strip()
+            ru_value = ru.strip() if isinstance(ru, str) else ""
+            if ru_value and not _is_placeholder_ru(ru_value):
+                discipline_map[en] = ru_value
+                discipline_map[en.casefold()] = ru_value
+            elif en in discipline_fallback_ru:
+                discipline_map[en] = discipline_fallback_ru[en]
+                discipline_map[en.casefold()] = discipline_fallback_ru[en]
+
+        sub_items = discipline.get("поддисциплины", []) or []
+        if not sub_items:
+            for value in discipline.values():
+                if not isinstance(value, list):
+                    continue
+                if any(
+                    isinstance(entry, dict)
+                    and isinstance(entry.get("name"), dict)
+                    and isinstance(entry["name"].get("en"), str)
+                    for entry in value
+                ):
+                    sub_items = value
+                    break
+
+        for sub in sub_items:
+            if not isinstance(sub, dict):
+                continue
+            sub_name = sub.get("name", {})
+            sub_en = sub_name.get("en")
+            sub_ru = sub_name.get("ru")
+            if isinstance(sub_en, str):
+                sub_en = sub_en.strip()
+                sub_ru_value = sub_ru.strip() if isinstance(sub_ru, str) else ""
+                if sub_ru_value and not _is_placeholder_ru(sub_ru_value):
+                    power_map[sub_en] = sub_ru_value
+                    power_map[sub_en.casefold()] = sub_ru_value
+                elif sub_en in power_fallback_ru:
+                    power_map[sub_en] = power_fallback_ru[sub_en]
+                    power_map[sub_en.casefold()] = power_fallback_ru[sub_en]
+
+    for en, ru in discipline_fallback_ru.items():
+        discipline_map.setdefault(en, ru)
+        discipline_map.setdefault(en.casefold(), ru)
+    for en, ru in power_fallback_ru.items():
+        power_map.setdefault(en, ru)
+        power_map.setdefault(en.casefold(), ru)
+
+    return discipline_map, power_map
 
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
@@ -81,8 +154,56 @@ if authentication_status is not True:
 # ---- Создаём аутентификатор ----
 def Profile():
     
+    
     if authentication_status:
         user = api.get_user(st.session_state.get("username"))
+        
+
+        user_stats = user.get("stats") or {}
+        raw_disciplines = user_stats.get("disciplines") or []
+        discipline_name_ru, power_name_ru = _load_discipline_translations()
+
+        user_clan = user_stats.get("clan")
+        clan_display = "Неизвестный клан"
+
+        def _normalize_clan(value: object) -> str:
+            return str(value or "").strip().casefold().replace("_", " ").replace("-", " ")
+
+        user_clan_norm = _normalize_clan(user_clan)
+        for clan in ALL_CLANS:
+            if user_clan_norm and user_clan_norm in {
+                _normalize_clan(clan.key),
+                _normalize_clan(clan.name),
+                _normalize_clan(clan.name_ru),
+            }:
+                clan_display = clan.name_ru or clan.name
+                break
+
+        disciplines_map = {}
+        for item in raw_disciplines:
+            discipline_en = str(item.get("discipline_en") or "").strip()
+            power_en = str(item.get("power_en") or "").strip()
+
+            discipline_name = (
+                discipline_name_ru.get(discipline_en)
+                or discipline_name_ru.get(discipline_en.casefold())
+                or discipline_en
+                or "Unknown discipline"
+            )
+            power_name = (
+                power_name_ru.get(power_en)
+                or power_name_ru.get(power_en.casefold())
+                or power_en
+                or "Unknown power"
+            )
+            disciplines_map.setdefault(discipline_name, []).append(
+                {
+                    "name": power_name,
+                    "level": item.get("level") or 0,
+                    "description": item.get("description") or "",
+                }
+            )
+
         character = {
             "photo": user["foto"],
             "name": user["character_name"],
@@ -91,27 +212,7 @@ def Profile():
             "shreknet": user["tg_name"],
             "status": "Активен",        # или "Торпор"
             "is_torpor": False,          # включи True — появится кнопка выхода
-        "disciplines": {
-                "Доминирование": [
-                    {
-                        "name": "Взгляд хищника",
-                        "level": 1,
-                        "description": "Цель ощущает давление воли персонажа.",
-                    },
-                    {
-                        "name": "Команда",
-                        "level": 2,
-                        "description": "Краткий приказ, которому сложно сопротивляться.",
-                    },
-                ],
-                "Стойкость": [
-                    {
-                        "name": "Каменная плоть",
-                        "level": 1,
-                        "description": "Тело становится устойчивее к урону.",
-                    }
-                ],
-            },
+            "disciplines": disciplines_map,
             "morality": {
                 "humanity": 7,
                 "feeding": "Согласованное",
@@ -171,8 +272,8 @@ def Profile():
             st.session_state.hunger_value = user['stats']["hunger"]
 
         @st.dialog("Клан")
-        def modal_klan():
-            st.write(user['stats']["klan_hint"])
+        def modal_clan():
+            st.write(user['stats']["clan_hint"])
 
         @st.dialog("Сир")
         def modal_sir_namee():
@@ -190,8 +291,8 @@ def Profile():
 
         with col1:
             st.subheader("Клан")
-            st.write(f"**{user['stats']['klan']}**")
-            st.button("Подсказка", key="klan_hint_btn", on_click=modal_klan)
+            st.write(f"**{clan_display}**")
+            st.button("Подсказка", key="clan_hint_btn", on_click=modal_clan)
 
         with col2:
             st.subheader("Сир")
@@ -219,14 +320,20 @@ def Profile():
         with colB:
             st.metric("Голод", f"{st.session_state.hunger_value} / 10")
             col_minus, col_plus = st.columns([1, 1])
+            
             with col_minus:
                 if st.button('minus', key="hunger_minus"):
                     st.session_state.hunger_value = max(0, st.session_state.hunger_value - 1)
+                    user["stats"]["hunger"] = st.session_state.hunger_value
+                    api.put_user(user)
                     st.rerun()
             with col_plus:
                 if st.button('plus', key="hunger_plus"):
-                    st.session_state.hunger_value = min(10, st.session_state.hunger_value + 1)
+                    st.session_state.hunger_value = max(0, st.session_state.hunger_value + 1)
+                    user["stats"]["hunger"] = st.session_state.hunger_value
+                    api.put_user(user)
                     st.rerun()
+
 
         # ---------------------------- Сила / Стамина ----------------------------
 
@@ -282,7 +389,7 @@ def Profile():
 
         st.button("Меня диаблерят", use_container_width=True, on_click=modal_diablerie)
 
-        # ДОПОЛНЕНИЕ: БЛОКИ 3–5 (Streamlit, совместимо с @st.dialog)
+        # ДОПОЛНЕНИЕ: БЛОКИ 3-5 (Streamlit, совместимо с @st.dialog)
         # ВСТАВЛЯТЬ В КОНЕЦ ФАЙЛА ПОСЛЕ БЛОКА 2
 
         # =========================================================
@@ -294,13 +401,15 @@ def Profile():
 
         @st.dialog("Способность")
         def ability_dialog(name, discipline, level, description):
-            st.markdown(f"""
-        **Название:** {name}  
-        **Дисциплина:** {discipline}  
-        **Уровень:** {level}
-        
-        {description}
-        """)
+            st.markdown(
+                f"""
+**Имя:** {name}  
+**Дисциплина:** {discipline}  
+**Уровень:** {level}
+"""
+            )
+            if description:
+                st.markdown(description)
 
         st.button(
             "➕ Заявка на изучение дисциплины",
@@ -530,3 +639,4 @@ if section == "Профиль":
     Profile()
 #elif section == "Новости":
 #    News() 
+

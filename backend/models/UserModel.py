@@ -29,6 +29,21 @@ class UserModel(Document):
         if isinstance(value, str):
             return [value]
         return value
+    @classmethod
+    def from_dict( user: dict):
+        return UserModel(
+            foto=user["foto"],
+            character_name=user["character_name"],
+            other_character_name=user["other_character_name"],
+            name=user["name"],
+            last_name=user["last_name"],
+            tg_name=user["tg_name"],
+            status=user["status"],
+            stats=user["stats"],
+            email=user["email"],
+            password=user["password"],
+            role=user["role"],
+        )
 
     class Settings:
         name = "users"
