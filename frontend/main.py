@@ -34,26 +34,7 @@ _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
-@st.cache_data(show_spinner=False)
-def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
-    path = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
-    if not path.exists():
-        return {}, {}
-    data = json.loads(path.read_text(encoding="utf-8"))
-    discipline_map: dict[str, str] = {}
-    power_map: dict[str, str] = {}
 
-    discipline_fallback_ru: dict[str, str] = {
-        "Umbrakinesis": "Умбракинез",
-        "Hematurgy": "Гематургия",
-        "Aethercraft": "Эфирокрафт",
-    }
-    power_fallback_ru: dict[str, str] = {
-        "Veil Step": "Шаг сквозь завесу",
-        "Sanguine Lattice": "Кровавая решетка",
-        "Crimson Tide": "Багровый прилив",
-        "Starbind": "Звездные узы",
-    }
 
     def _is_placeholder_ru(value: object) -> bool:
         if not isinstance(value, str):
