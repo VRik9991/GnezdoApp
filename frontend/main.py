@@ -36,15 +36,6 @@ with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
 
 _DISCIPLINES_PATH = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
 _KEY_SANITIZER = re.compile(r"[^a-z0-9]+")
-_MANUAL_DISCIPLINE_RU: dict[str, str] = {
-    "Umbrakinesis": "Умбракинезис",
-    "Hematurgy": "Гематургия",
-}
-_MANUAL_POWER_RU: dict[str, str] = {
-    "Veil Step": "Шаг сквозь Завесу",
-    "Crimson Tide": "Багровый прилив",
-    "Sanguine Lattice": "Сангвиновая решетка",
-}
 
 
 def _normalize_ru_value(value: object) -> str:
