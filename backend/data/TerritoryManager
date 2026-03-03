@@ -1,0 +1,17 @@
+from backend/models/TerritoryModel import TerritoryModel
+
+class TerritoryManager:
+    def Attack(territory,attackers:[],defenders:[],time_passed,resurce):
+        base = 5
+        base += (time_passed//20)*7
+        base += len(attackers) *2
+        base += resurce * 2
+        for attacker in atackers:
+            if attacker = territory.owner:
+                base += 15
+        if len(deffenders) == 0:
+            base += 15
+
+
+
+
