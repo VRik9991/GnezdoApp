@@ -1,9 +1,9 @@
-﻿import sys
+import sys
 from pathlib import Path
 import os
+import re
 import streamlit as st
 import pandas as pd
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -34,70 +34,136 @@ _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
+_DISCIPLINES_PATH = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
+_KEY_SANITIZER = re.compile(r"[^a-z0-9]+")
 
 
-    def _is_placeholder_ru(value: object) -> bool:
-        if not isinstance(value, str):
-            return True
-        text = value.strip()
-        if not text:
-            return True
-        return set(text) <= {"?", " "}
+def _normalize_ru_value(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    if not text or set(text) <= {"?", " "}:
+        return ""
+    return text
 
-    for discipline in data.get("disciplines", []):
+
+def _normalize_en_key(value: object) -> str:
+    text = str(value or "").strip().casefold()
+    if not text:
+        return ""
+    return _KEY_SANITIZER.sub(" ", text).strip()
+
+
+def _store_translation(target: dict[str, str], en_value: object, ru_value: object) -> None:
+    en = str(en_value or "").strip()
+    ru = _normalize_ru_value(ru_value)
+    if not en or not ru:
+        return
+    target[en] = ru
+    target[en.casefold()] = ru
+    normalized = _normalize_en_key(en)
+    if normalized:
+        target[normalized] = ru
+
+
+def _extract_name_block(payload: object) -> dict[str, object]:
+    if isinstance(payload, dict):
+        name = payload.get("name")
+        if isinstance(name, dict):
+            return name
+        for candidate in payload.values():
+            if isinstance(candidate, dict) and isinstance(candidate.get("en"), str):
+                return candidate
+    return {}
+
+
+def _extract_ru_from_name(name_payload: object) -> str:
+    if not isinstance(name_payload, dict):
+        return ""
+
+    direct = _normalize_ru_value(name_payload.get("ru"))
+    if direct:
+        return direct
+
+    for key, value in name_payload.items():
+        if str(key).strip().casefold().startswith("ru"):
+            candidate = _normalize_ru_value(value)
+            if candidate:
+                return candidate
+
+    for key, value in name_payload.items():
+        if str(key).strip().casefold() == "en":
+            continue
+        candidate = _normalize_ru_value(value)
+        if candidate:
+            return candidate
+
+    return ""
+
+
+def _extract_named_items(payload: object) -> list[dict[str, object]]:
+    if not isinstance(payload, dict):
+        return []
+    for candidate in payload.values():
+        if not isinstance(candidate, list):
+            continue
+        if any(
+            isinstance(entry, dict)
+            and isinstance(_extract_name_block(entry).get("en"), str)
+            for entry in candidate
+        ):
+            return candidate
+    return []
+
+
+def _lookup_translation(translations: dict[str, str], en_value: object) -> str:
+    raw = str(en_value or "").strip()
+    if not raw:
+        return ""
+    return (
+        translations.get(raw)
+        or translations.get(raw.casefold())
+        or translations.get(_normalize_en_key(raw))
+        or ""
+    )
+
+
+def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
+    discipline_map: dict[str, str] = {}
+    power_map: dict[str, str] = {}
+
+    try:
+        data = json.loads(_DISCIPLINES_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return discipline_map, power_map
+
+    raw_disciplines = data.get("disciplines", [])
+    disciplines = raw_disciplines if isinstance(raw_disciplines, list) else _extract_named_items(data)
+
+    for discipline in disciplines:
         if not isinstance(discipline, dict):
             continue
-        name = discipline.get("name", {})
-        en = name.get("en")
-        ru = name.get("ru")
-        if isinstance(en, str):
-            en = en.strip()
-            ru_value = ru.strip() if isinstance(ru, str) else ""
-            if ru_value and not _is_placeholder_ru(ru_value):
-                discipline_map[en] = ru_value
-                discipline_map[en.casefold()] = ru_value
-            elif en in discipline_fallback_ru:
-                discipline_map[en] = discipline_fallback_ru[en]
-                discipline_map[en.casefold()] = discipline_fallback_ru[en]
+
+        name = _extract_name_block(discipline)
+        _store_translation(discipline_map, name.get("en"), _extract_ru_from_name(name))
 
         sub_items = discipline.get("поддисциплины", []) or []
         if not sub_items:
-            for value in discipline.values():
-                if not isinstance(value, list):
-                    continue
-                if any(
-                    isinstance(entry, dict)
-                    and isinstance(entry.get("name"), dict)
-                    and isinstance(entry["name"].get("en"), str)
-                    for entry in value
-                ):
-                    sub_items = value
-                    break
+            sub_items = _extract_named_items(discipline)
 
         for sub in sub_items:
             if not isinstance(sub, dict):
                 continue
-            sub_name = sub.get("name", {})
-            sub_en = sub_name.get("en")
-            sub_ru = sub_name.get("ru")
-            if isinstance(sub_en, str):
-                sub_en = sub_en.strip()
-                sub_ru_value = sub_ru.strip() if isinstance(sub_ru, str) else ""
-                if sub_ru_value and not _is_placeholder_ru(sub_ru_value):
-                    power_map[sub_en] = sub_ru_value
-                    power_map[sub_en.casefold()] = sub_ru_value
-                elif sub_en in power_fallback_ru:
-                    power_map[sub_en] = power_fallback_ru[sub_en]
-                    power_map[sub_en.casefold()] = power_fallback_ru[sub_en]
+            sub_name = _extract_name_block(sub)
+            _store_translation(power_map, sub_name.get("en"), _extract_ru_from_name(sub_name))
 
-    for en, ru in discipline_fallback_ru.items():
-        discipline_map.setdefault(en, ru)
-        discipline_map.setdefault(en.casefold(), ru)
-    for en, ru in power_fallback_ru.items():
-        power_map.setdefault(en, ru)
-        power_map.setdefault(en.casefold(), ru)
+    for clan in ALL_CLANS:
+        for discipline_en, discipline_ru in zip(clan.disciplines, clan.disciplines_ru):
+            _store_translation(discipline_map, discipline_en, discipline_ru)
+
 
     return discipline_map, power_map
+
 
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
@@ -185,14 +251,12 @@ def Profile():
             power_en = str(item.get("power_en") or "").strip()
 
             discipline_name = (
-                discipline_name_ru.get(discipline_en)
-                or discipline_name_ru.get(discipline_en.casefold())
+                _lookup_translation(discipline_name_ru, discipline_en)
                 or discipline_en
                 or "Unknown discipline"
             )
             power_name = (
-                power_name_ru.get(power_en)
-                or power_name_ru.get(power_en.casefold())
+                _lookup_translation(power_name_ru, power_en)
                 or power_en
                 or "Unknown power"
             )
@@ -639,4 +703,3 @@ if section == "Профиль":
     Profile()
 #elif section == "Новости":
 #    News() 
-
