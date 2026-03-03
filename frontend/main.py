@@ -66,6 +66,56 @@ def _store_translation(target: dict[str, str], en_value: object, ru_value: objec
         target[normalized] = ru
 
 
+def _extract_name_block(payload: object) -> dict[str, object]:
+    if isinstance(payload, dict):
+        name = payload.get("name")
+        if isinstance(name, dict):
+            return name
+        for candidate in payload.values():
+            if isinstance(candidate, dict) and isinstance(candidate.get("en"), str):
+                return candidate
+    return {}
+
+
+def _extract_ru_from_name(name_payload: object) -> str:
+    if not isinstance(name_payload, dict):
+        return ""
+
+    direct = _normalize_ru_value(name_payload.get("ru"))
+    if direct:
+        return direct
+
+    for key, value in name_payload.items():
+        if str(key).strip().casefold().startswith("ru"):
+            candidate = _normalize_ru_value(value)
+            if candidate:
+                return candidate
+
+    for key, value in name_payload.items():
+        if str(key).strip().casefold() == "en":
+            continue
+        candidate = _normalize_ru_value(value)
+        if candidate:
+            return candidate
+
+    return ""
+
+
+def _extract_named_items(payload: object) -> list[dict[str, object]]:
+    if not isinstance(payload, dict):
+        return []
+    for candidate in payload.values():
+        if not isinstance(candidate, list):
+            continue
+        if any(
+            isinstance(entry, dict)
+            and isinstance(_extract_name_block(entry).get("en"), str)
+            for entry in candidate
+        ):
+            return candidate
+    return []
+
+
 def _lookup_translation(translations: dict[str, str], en_value: object) -> str:
     raw = str(en_value or "").strip()
     if not raw:
@@ -87,41 +137,30 @@ def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return discipline_map, power_map
 
-    for discipline in data.get("disciplines", []):
+    raw_disciplines = data.get("disciplines", [])
+    disciplines = raw_disciplines if isinstance(raw_disciplines, list) else _extract_named_items(data)
+
+    for discipline in disciplines:
         if not isinstance(discipline, dict):
             continue
 
-        name = discipline.get("name", {})
-        _store_translation(discipline_map, name.get("en"), name.get("ru"))
+        name = _extract_name_block(discipline)
+        _store_translation(discipline_map, name.get("en"), _extract_ru_from_name(name))
 
         sub_items = discipline.get("поддисциплины", []) or []
         if not sub_items:
-            for candidate in discipline.values():
-                if not isinstance(candidate, list):
-                    continue
-                if any(
-                    isinstance(entry, dict)
-                    and isinstance(entry.get("name"), dict)
-                    and isinstance(entry["name"].get("en"), str)
-                    for entry in candidate
-                ):
-                    sub_items = candidate
-                    break
+            sub_items = _extract_named_items(discipline)
 
         for sub in sub_items:
             if not isinstance(sub, dict):
                 continue
-            sub_name = sub.get("name", {})
-            _store_translation(power_map, sub_name.get("en"), sub_name.get("ru"))
+            sub_name = _extract_name_block(sub)
+            _store_translation(power_map, sub_name.get("en"), _extract_ru_from_name(sub_name))
 
     for clan in ALL_CLANS:
         for discipline_en, discipline_ru in zip(clan.disciplines, clan.disciplines_ru):
             _store_translation(discipline_map, discipline_en, discipline_ru)
 
-    for discipline_en, discipline_ru in _MANUAL_DISCIPLINE_RU.items():
-        _store_translation(discipline_map, discipline_en, discipline_ru)
-    for power_en, power_ru in _MANUAL_POWER_RU.items():
-        _store_translation(power_map, power_en, power_ru)
 
     return discipline_map, power_map
 
@@ -664,4 +703,3 @@ if section == "Профиль":
     Profile()
 #elif section == "Новости":
 #    News() 
-
