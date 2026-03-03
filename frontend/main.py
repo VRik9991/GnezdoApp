@@ -1,9 +1,9 @@
-﻿import sys
+import sys
 from pathlib import Path
 import os
+import re
 import streamlit as st
 import pandas as pd
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -34,70 +34,106 @@ _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
 with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
     config = yaml.safe_load(file)
 
+_DISCIPLINES_PATH = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
+_KEY_SANITIZER = re.compile(r"[^a-z0-9]+")
+_MANUAL_DISCIPLINE_RU: dict[str, str] = {
+    "Umbrakinesis": "Умбракинезис",
+    "Hematurgy": "Гематургия",
+}
+_MANUAL_POWER_RU: dict[str, str] = {
+    "Veil Step": "Шаг сквозь Завесу",
+    "Crimson Tide": "Багровый прилив",
+    "Sanguine Lattice": "Сангвиновая решетка",
+}
 
 
-    def _is_placeholder_ru(value: object) -> bool:
-        if not isinstance(value, str):
-            return True
-        text = value.strip()
-        if not text:
-            return True
-        return set(text) <= {"?", " "}
+def _normalize_ru_value(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    if not text or set(text) <= {"?", " "}:
+        return ""
+    return text
+
+
+def _normalize_en_key(value: object) -> str:
+    text = str(value or "").strip().casefold()
+    if not text:
+        return ""
+    return _KEY_SANITIZER.sub(" ", text).strip()
+
+
+def _store_translation(target: dict[str, str], en_value: object, ru_value: object) -> None:
+    en = str(en_value or "").strip()
+    ru = _normalize_ru_value(ru_value)
+    if not en or not ru:
+        return
+    target[en] = ru
+    target[en.casefold()] = ru
+    normalized = _normalize_en_key(en)
+    if normalized:
+        target[normalized] = ru
+
+
+def _lookup_translation(translations: dict[str, str], en_value: object) -> str:
+    raw = str(en_value or "").strip()
+    if not raw:
+        return ""
+    return (
+        translations.get(raw)
+        or translations.get(raw.casefold())
+        or translations.get(_normalize_en_key(raw))
+        or ""
+    )
+
+
+def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
+    discipline_map: dict[str, str] = {}
+    power_map: dict[str, str] = {}
+
+    try:
+        data = json.loads(_DISCIPLINES_PATH.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return discipline_map, power_map
 
     for discipline in data.get("disciplines", []):
         if not isinstance(discipline, dict):
             continue
+
         name = discipline.get("name", {})
-        en = name.get("en")
-        ru = name.get("ru")
-        if isinstance(en, str):
-            en = en.strip()
-            ru_value = ru.strip() if isinstance(ru, str) else ""
-            if ru_value and not _is_placeholder_ru(ru_value):
-                discipline_map[en] = ru_value
-                discipline_map[en.casefold()] = ru_value
-            elif en in discipline_fallback_ru:
-                discipline_map[en] = discipline_fallback_ru[en]
-                discipline_map[en.casefold()] = discipline_fallback_ru[en]
+        _store_translation(discipline_map, name.get("en"), name.get("ru"))
 
         sub_items = discipline.get("поддисциплины", []) or []
         if not sub_items:
-            for value in discipline.values():
-                if not isinstance(value, list):
+            for candidate in discipline.values():
+                if not isinstance(candidate, list):
                     continue
                 if any(
                     isinstance(entry, dict)
                     and isinstance(entry.get("name"), dict)
                     and isinstance(entry["name"].get("en"), str)
-                    for entry in value
+                    for entry in candidate
                 ):
-                    sub_items = value
+                    sub_items = candidate
                     break
 
         for sub in sub_items:
             if not isinstance(sub, dict):
                 continue
             sub_name = sub.get("name", {})
-            sub_en = sub_name.get("en")
-            sub_ru = sub_name.get("ru")
-            if isinstance(sub_en, str):
-                sub_en = sub_en.strip()
-                sub_ru_value = sub_ru.strip() if isinstance(sub_ru, str) else ""
-                if sub_ru_value and not _is_placeholder_ru(sub_ru_value):
-                    power_map[sub_en] = sub_ru_value
-                    power_map[sub_en.casefold()] = sub_ru_value
-                elif sub_en in power_fallback_ru:
-                    power_map[sub_en] = power_fallback_ru[sub_en]
-                    power_map[sub_en.casefold()] = power_fallback_ru[sub_en]
+            _store_translation(power_map, sub_name.get("en"), sub_name.get("ru"))
 
-    for en, ru in discipline_fallback_ru.items():
-        discipline_map.setdefault(en, ru)
-        discipline_map.setdefault(en.casefold(), ru)
-    for en, ru in power_fallback_ru.items():
-        power_map.setdefault(en, ru)
-        power_map.setdefault(en.casefold(), ru)
+    for clan in ALL_CLANS:
+        for discipline_en, discipline_ru in zip(clan.disciplines, clan.disciplines_ru):
+            _store_translation(discipline_map, discipline_en, discipline_ru)
+
+    for discipline_en, discipline_ru in _MANUAL_DISCIPLINE_RU.items():
+        _store_translation(discipline_map, discipline_en, discipline_ru)
+    for power_en, power_ru in _MANUAL_POWER_RU.items():
+        _store_translation(power_map, power_en, power_ru)
 
     return discipline_map, power_map
+
 
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
@@ -185,14 +221,12 @@ def Profile():
             power_en = str(item.get("power_en") or "").strip()
 
             discipline_name = (
-                discipline_name_ru.get(discipline_en)
-                or discipline_name_ru.get(discipline_en.casefold())
+                _lookup_translation(discipline_name_ru, discipline_en)
                 or discipline_en
                 or "Unknown discipline"
             )
             power_name = (
-                power_name_ru.get(power_en)
-                or power_name_ru.get(power_en.casefold())
+                _lookup_translation(power_name_ru, power_en)
                 or power_en
                 or "Unknown power"
             )
