@@ -1,6 +1,7 @@
+import os
+import base64
 import sys
 from pathlib import Path
-import os
 import re
 import streamlit as st
 import pandas as pd
@@ -36,6 +37,76 @@ with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
 
 _DISCIPLINES_PATH = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
 _KEY_SANITIZER = re.compile(r"[^a-z0-9]+")
+_REGION_MAP_ASSET_CANDIDATES = (
+    "region_map.png",
+    "region_map.jpg",
+    "region_map.jpeg",
+    "region_map.webp",
+    "region_map_page1.png",
+    "region_map.pdf",
+)
+_REGIONS_DIRECTORY = {
+    "Часть 1": [
+        "Римски Шанчеви",
+        "Верхние Ливады",
+        "Клиса",
+        "Велики Рит",
+        "Большое болото",
+        "Слана Бара",
+        "Малый Белград",
+        "Промзона Север 1",
+        "Промзона Север 2",
+        "Сайлово",
+        "Новое кладбище",
+        "Юговичево",
+        "Авиаторское Населье",
+        "Первязово Населье",
+        "Салайка",
+        "Банатич",
+    ],
+    "Часть 2": [
+        "Депония",
+        "Пром. зона",
+        "Промзона Север 3",
+        "Промзона Север 4",
+        "Ратно Острово",
+        "Шанхай",
+    ],
+    "Часть 3": [
+        "Петроварадин",
+        "Петроварадин (Восточная зона)",
+        "Мишелук",
+        "Садови",
+        "Буковацкое плато",
+        "Буковалцкий путь",
+        "Алибеговац",
+        "Рыбняк",
+    ],
+    "Часть 4": [
+        "Адице",
+        "Телеп",
+        "Бистрица",
+        "Ново Населье",
+        "Ветерничка Рампа",
+        "Детелинара",
+        "Саймиште",
+        "Адамовичево Населье",
+        "Грбавица",
+        "Старый город",
+        "Лиман",
+        "Депрессия",
+        "Рыбацкий остров",
+        "Каменичкий остров",
+        "Сремска Каменица",
+        "Сремска Каменица (Южная зона)",
+        "Ротквария",
+    ],
+}
+_REGION_OPTIONS = [
+    region_name
+    for region_group in _REGIONS_DIRECTORY.values()
+    for region_name in region_group
+]
 
 
 def _normalize_ru_value(value: object) -> str:
@@ -164,6 +235,43 @@ def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
 
     return discipline_map, power_map
 
+
+def _render_region_map_placeholder() -> None:
+    supported_assets = ", ".join(f"`{filename}`" for filename in _REGION_MAP_ASSET_CANDIDATES)
+    st.container(border=True).markdown(
+        f"**Карта регионов**\n\n"
+        f"Файл карты не найден в папке `frontend/`. "
+        f"Сохраните изображение как один из файлов: {supported_assets}."
+    )
+
+
+def _resolve_region_map_asset() -> Path | None:
+    for filename in _REGION_MAP_ASSET_CANDIDATES:
+        asset_path = Path(__file__).with_name(filename)
+        if asset_path.exists():
+            return asset_path
+    return None
+
+
+def _render_region_map(asset_path: Path) -> None:
+    if asset_path.suffix.lower() == ".pdf":
+        encoded_pdf = base64.b64encode(asset_path.read_bytes()).decode("ascii")
+        st.markdown(
+            f"""
+            <div style="border: 1px solid #d9d9d9; border-radius: 16px; overflow: hidden; background: white;">
+                <iframe
+                    src="data:application/pdf;base64,{encoded_pdf}"
+                    width="100%"
+                    height="1200"
+                    style="border: none;"
+                ></iframe>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        return
+
+    st.image(str(asset_path), use_container_width=True)
 
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
@@ -296,6 +404,36 @@ def Profile():
             },
         }
 
+        if "territory_requests" not in st.session_state:
+            st.session_state.territory_requests = {}
+
+        action_user_email = user.get("email") or st.session_state.get("username", "")
+        latest_actions_by_name = {}
+        if action_user_email:
+            try:
+                saved_actions = api.get_actions(action_user_email)
+            except Exception:
+                saved_actions = []
+            for saved_action in saved_actions:
+                territory_name = str(saved_action.get("territory_name") or "").strip()
+                if not territory_name or territory_name in latest_actions_by_name:
+                    continue
+                latest_actions_by_name[territory_name] = saved_action
+
+        for territory_index, territory in enumerate(character["resources"]["territories"]):
+            saved_action = latest_actions_by_name.get(territory["name"])
+            if not saved_action:
+                continue
+            st.session_state.territory_requests[territory_index] = {
+                "name": territory["name"],
+                "status": saved_action.get("territory_status") or territory["status"],
+                "action_type": saved_action.get("action_type") or "Атака",
+                "attackers": int(saved_action.get("attackers") or 0),
+                "defenders": int(saved_action.get("defenders") or 0),
+                "resources_used": int(saved_action.get("resources_used") or 0),
+                "notes": str(saved_action.get("notes") or ""),
+                "mongo_id": saved_action.get("id") or saved_action.get("_id"),
+            }
 
         st.divider()
 
@@ -557,12 +695,83 @@ def Profile():
         with c2:
             st.metric("Ресурсы", character["resources"]["materials"])
 
-        @st.dialog("Территория")
-        def territory_dialog(name, status):
+        @st.dialog("Заявка по территории")
+        def territory_dialog(name, status, idx):
+            action_options = ["Атака", "Защита", "Шпионаж", "Пропаганда", "Подстрекательство", "Другая"]
+            current_request = st.session_state.territory_requests.get(
+                idx,
+                {
+                    "action_type": action_options[0],
+                    "attackers": 0,
+                    "resources_used": 0,
+                    "notes": "",
+                    "mongo_id": None,
+                },
+            )
+
             st.markdown(f"""
         **Территория:** {name}  
         **Статус:** {status}
         """)
+
+            with st.form(key=f"territory_form_{idx}"):
+                action_type = st.selectbox(
+                    "Тип действия",
+                    action_options,
+                    index=action_options.index(current_request["action_type"])
+                    if current_request["action_type"] in action_options
+                    else 0,
+                )
+                attackers = st.number_input(
+                    "Кол-во атакующих",
+                    min_value=0,
+                    value=int(current_request["attackers"]),
+                    step=1,
+                )
+                resources_used = st.number_input(
+                    "Использовано ресурсов",
+                    min_value=0,
+                    value=int(current_request["resources_used"]),
+                    step=1,
+                )
+                notes = st.text_area(
+                    "Дополнительно",
+                    value=current_request["notes"],
+                    placeholder="Короткое описание действия",
+                )
+
+                submit_label = "Сохранить изменения" if current_request.get("mongo_id") else "Сохранить заявку"
+                if st.form_submit_button(submit_label, use_container_width=True):
+                    payload = {
+                        "user_email": action_user_email,
+                        "territory_name": name,
+                        "territory_status": status,
+                        "action_type": action_type,
+                        "attackers": int(attackers),
+                        "defenders": int(defenders),
+                        "resources_used": int(resources_used),
+                        "notes": notes.strip(),
+                    }
+                    action_id = current_request.get("mongo_id")
+                    try:
+                        if action_id:
+                            saved_action = api.update_action(action_id, payload)
+                        else:
+                            saved_action = api.create_action(payload)
+                    except Exception as exc:
+                        st.error(f"Не удалось сохранить заявку: {exc}")
+                    else:
+                        st.session_state.territory_requests[idx] = {
+                            "name": name,
+                            "status": status,
+                            "action_type": action_type,
+                            "attackers": int(attackers),
+                            "defenders": int(defenders),
+                            "resources_used": int(resources_used),
+                            "notes": notes.strip(),
+                            "mongo_id": saved_action.get("id") or saved_action.get("_id"),
+                        }
+                        st.success("Заявка сохранена")
 
         st.subheader("Территории")
 
@@ -572,8 +781,16 @@ def Profile():
                 key=f"territory_{i}",
                 use_container_width=True,
                 on_click=territory_dialog,
-                args=(t["name"], t["status"])
+                args=(t["name"], t["status"], i)
             )
+            if "territory_requests" in st.session_state and i in st.session_state.territory_requests:
+                req = st.session_state.territory_requests[i]
+                st.caption(
+                    f"Последняя заявка: {req['action_type']} | "
+                    f"Атакующие: {req['attackers']} | "
+                    f"Защищающиеся: {req['defenders']} | "
+                    f"Ресурсы: {req['resources_used']}"
+                )
 
 
     news_db = [
@@ -693,13 +910,42 @@ def Profile():
 #         st.success("Новость скрыта")
 
 
+def Regions():
+    st.header("Регионы")
+
+    region_map_asset = _resolve_region_map_asset()
+    if region_map_asset is not None:
+        _render_region_map(region_map_asset)
+    else:
+        st.warning("Файл карты не найден в `frontend/`.")
+        _render_region_map_placeholder()
+
+    st.divider()
+    st.subheader("Список регионов")
+    st.selectbox("Выберите регион", _REGION_OPTIONS, key="selected_region_name")
+
+    st.subheader("Информация о регионе")
+    st.markdown(
+        """
+        <div style="min-height: 220px; border: 1px solid #d9d9d9; border-radius: 12px; padding: 1rem; background: #fafafa;">
+            Здесь будет информация о выбранном регионе.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.button("Создать заявку", key="region_request_placeholder", use_container_width=True)
+
+
 st.sidebar.title("Меню")
 if name:
     st.sidebar.caption(f"Пользователь: {name}")
 authenticator.logout("Выйти", location="sidebar", key="Logout", use_container_width=True)
-section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости"])
+section = st.sidebar.radio("Выберите раздел:", ["Профиль", "Новости","Регионы"])
 
 if section == "Профиль":
     Profile()
+if section == "Регионы":
+    Regions()
 #elif section == "Новости":
 #    News() 

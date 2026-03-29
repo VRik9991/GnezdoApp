@@ -3,6 +3,7 @@ from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 import os
+from backend.models.ActionModel import ActionModel
 from backend.models.UserModel import UserModel
 
 
@@ -24,6 +25,7 @@ async def init_db() -> None:
         database=_client["users"],
         document_models=[
             UserModel,
+            ActionModel,
         ]
     )
     _initialized = True

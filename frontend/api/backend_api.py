@@ -25,13 +25,12 @@ class APIClient:
 
 
     def _post(self, path, json):
-        with httpx.Client() as client:
-            response = client.post(
-                f"{self.base_url}{path}",
-                json=json
-            )
-            print(response.status_code)
-            print(response.json())
+        if not path.startswith("/"):
+            path = f"/{path}"
+        with httpx.Client(base_url=self.base_url) as client:
+            response = client.post(path, json=json)
+            response.raise_for_status()
+            return response.json()
 
     def register(self, email: str, password: str):
         return self._post("/auth/register", {"email": email, "password": password})
@@ -44,3 +43,13 @@ class APIClient:
     
     def put_user(self, data: dict):
         return self._put("/user", data)
+
+    def get_actions(self, user_email: Optional[str] = None):
+        params = {"user_email": user_email} if user_email else None
+        return self._get("/action", params)
+
+    def create_action(self, data: dict):
+        return self._post("/action", data)
+
+    def update_action(self, action_id: str, data: dict):
+        return self._put(f"/action/{action_id}", data)

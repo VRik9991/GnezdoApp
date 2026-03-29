@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+from backend.models.ActionModel import ActionModel, ActionType
 from backend.models.UserModel import UserModel
 from backend.models.UserModelStats import UserModelStats
 from backend.models.initDB import init_db
@@ -20,6 +22,17 @@ class UserUpdate(BaseModel):
     stats: Optional[UserModelStats] = None
     password: Optional[str] = None
     role: Optional[list[str]] = None
+
+
+class ActionCreate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    user_email: str
+    region_name: str
+
+    action_type: ActionType
+
+    resources_used: int = Field(default=0, ge=0)
+    notes: str = ""
 
 async def lifespan(app : FastAPI):
     await init_db()
@@ -111,5 +124,51 @@ async def delete_user(email: str):
     user = await read_user(email)
     await user.delete()
     return {"detail": "User deleted"}
+
+
+@app.post("/action")
+async def create_action(payload: ActionCreate):
+    if not payload.user_email.strip():
+        raise HTTPException(status_code=400, detail="user_email is required")
+    user = await UserModel.find_one(UserModel.email == payload.user_email)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    action = ActionModel(
+        user_email=payload.user_email,
+        region_name=payload.region_name,
+        action_type=payload.action_type,
+        resources_used=payload.resources_used,
+        notes=payload.notes,
+    )
+    await action.save()
+    return action
+
+
+@app.get("/action")
+async def read_actions(user_email: Optional[str] = None):
+    query = ActionModel.find_all()
+    if user_email:
+        query = ActionModel.find(ActionModel.user_email == user_email)
+    actions = await query.sort(-ActionModel.created_at).to_list()
+    return actions
+
+
+@app.put("/action/{action_id}")
+async def update_action(action_id: str, payload: ActionCreate):
+    action = await ActionModel.get(action_id)
+    if action is None:
+        raise HTTPException(status_code=404, detail="Action not found")
+    action.user_email = payload.user_email
+    action.territory_name = payload.territory_name
+    action.territory_status = payload.territory_status
+    action.action_type = payload.action_type
+    action.attackers = payload.attackers
+    action.defenders = payload.defenders
+    action.resources_used = payload.resources_used
+    action.notes = payload.notes
+    action.updated_at = datetime.now(timezone.utc)
+    await action.save()
+    return action
 
 
