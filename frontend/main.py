@@ -31,11 +31,14 @@ def _hide_sidebar() -> None:
 
 
 _AUTH_CONFIG_PATH = Path(__file__).with_name("auth_config.yaml")
-with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
-    config = yaml.safe_load(file)
-
 _DISCIPLINES_PATH = PROJECT_ROOT / "backend" / "data" / "disciplines.json"
 _KEY_SANITIZER = re.compile(r"[^a-z0-9]+")
+
+
+@st.cache_data(show_spinner=False)
+def _load_auth_config() -> dict:
+    with _AUTH_CONFIG_PATH.open("r", encoding="utf-8") as file:
+        return yaml.safe_load(file)
 
 
 def _normalize_ru_value(value: object) -> str:
@@ -128,6 +131,7 @@ def _lookup_translation(translations: dict[str, str], en_value: object) -> str:
     )
 
 
+@st.cache_data(show_spinner=False)
 def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
     discipline_map: dict[str, str] = {}
     power_map: dict[str, str] = {}
@@ -164,6 +168,9 @@ def _load_discipline_translations() -> tuple[dict[str, str], dict[str, str]]:
 
     return discipline_map, power_map
 
+
+
+config = _load_auth_config()
 
 
 def _maybe_hash_passwords_inplace(auth_config: dict) -> bool:
@@ -332,8 +339,9 @@ def Profile():
         # =========================================================
 
         
-        if "hunger_value" not in st.session_state:
-            st.session_state.hunger_value = user['stats']["hunger"]
+        current_hunger = user['stats']["hunger"]
+        if st.session_state.get("hunger_value") != current_hunger:
+            st.session_state.hunger_value = current_hunger
 
         @st.dialog("Клан")
         def modal_clan():
@@ -382,21 +390,28 @@ def Profile():
             st.button("Что это?", key="health_hint_btn", on_click=modal_health)
 
         with colB:
-            st.metric("Голод", f"{st.session_state.hunger_value} / 10")
+            hunger_metric = st.empty()
             col_minus, col_plus = st.columns([1, 1])
+            decrease_hunger = False
+            increase_hunger = False
             
             with col_minus:
-                if st.button('minus', key="hunger_minus"):
-                    st.session_state.hunger_value = max(0, st.session_state.hunger_value - 1)
-                    user["stats"]["hunger"] = st.session_state.hunger_value
-                    api.put_user(user)
-                    st.rerun()
+                decrease_hunger = st.button('minus', key="hunger_minus")
             with col_plus:
-                if st.button('plus', key="hunger_plus"):
-                    st.session_state.hunger_value = max(0, st.session_state.hunger_value + 1)
-                    user["stats"]["hunger"] = st.session_state.hunger_value
-                    api.put_user(user)
-                    st.rerun()
+                increase_hunger = st.button('plus', key="hunger_plus")
+
+            if decrease_hunger:
+                current_hunger = max(0, current_hunger - 1)
+                user["stats"]["hunger"] = current_hunger
+                st.session_state.hunger_value = current_hunger
+                api.put_user(user)
+            elif increase_hunger:
+                current_hunger = min(10, current_hunger + 1)
+                user["stats"]["hunger"] = current_hunger
+                st.session_state.hunger_value = current_hunger
+                api.put_user(user)
+
+            hunger_metric.metric("Голод", f"{current_hunger} / 10")
 
 
         # ---------------------------- Сила / Стамина ----------------------------

@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
 from backend.models.UserModel import UserModel
 from backend.models.UserModelStats import UserModelStats
@@ -25,14 +25,10 @@ async def lifespan(app : FastAPI):
     await init_db()
     yield
 
-async def ensure_db() -> None:
-    await init_db()
-
 app = FastAPI(
     title="GnezdoApp",
     version="1.0",
     lifespan=lifespan,
-    dependencies=[Depends(ensure_db)],
 )
 
 @app.get("/user_credentials")
@@ -111,5 +107,4 @@ async def delete_user(email: str):
     user = await read_user(email)
     await user.delete()
     return {"detail": "User deleted"}
-
 
