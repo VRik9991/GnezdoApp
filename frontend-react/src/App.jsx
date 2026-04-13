@@ -1,15 +1,26 @@
 import { useState } from 'react'
-import Text from './components/Text.jsx'
-import './App.css'
+import TextDropdown from './components/TextDropdown.jsx'
+import Hint from './components/Hint.jsx'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentButtonText, setCurrentButtonText] = useState('')
 
   return (
     <>
-      <Text> 
-        Hi Danjya!
-      </Text>
+      <TextDropdown
+        messages={[
+  'Вот появился первый текст.',
+  'Их тут несколько.',
+  'А этот текст слишком огромный.',
+  'Леша не токсичь',
+]}
+        onChange={setCurrentButtonText}
+      />
+      <Hint
+        buttonLabel="Показать подсказку"
+        title="Подсказка:"
+        message="Тыкнув на пространство вне подсказки она закроется!"
+      />
     </>
   )
 }
