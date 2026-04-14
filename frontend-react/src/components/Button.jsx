@@ -1,3 +1,4 @@
+
 import './Button.css'
 
 function Button({ children, onClick, className = '', type = 'button' }) {
@@ -7,7 +8,7 @@ function Button({ children, onClick, className = '', type = 'button' }) {
       onClick={onClick}
       className={`app-button ${className}`.trim()}
     >
-      <span className="app-button__label">{children}</span>
+      {children}
     </button>
   )
 }

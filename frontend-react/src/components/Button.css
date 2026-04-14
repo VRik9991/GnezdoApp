@@ -9,9 +9,7 @@
   justify-content: center;
   gap: 8px;
   min-width: 176px;
-  min-height: 49px;
   padding: 13px 24px;
-  box-sizing: border-box;
   border: 1px solid rgba(179, 50, 43, 0.55);
   border-radius: 6px;
   background:
@@ -34,15 +32,6 @@
     transform 0.18s ease,
     box-shadow 0.18s ease,
     filter 0.18s ease;
-}
-
-.app-button__label {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .app-button:hover {

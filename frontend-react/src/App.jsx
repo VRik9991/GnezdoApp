@@ -1,26 +1,45 @@
 import { useState } from 'react'
-import TextDropdown from './components/TextDropdown.jsx'
-import Hint from './components/Hint.jsx'
+import './App.css'
+import Sidebar from './components/Sidebar'
+import Button from './components/Button'
+import CheckBox from './components/CheckBox'
 
 function App() {
-  const [currentButtonText, setCurrentButtonText] = useState('')
+  const [activeTab, setActiveTab] = useState('base')
+  const [count, setCount] = useState(0)
+  const [isChecked, setIsChecked] = useState(false)
 
   return (
     <>
-      <TextDropdown
-        messages={[
-  'Вот появился первый текст.',
-  'Их тут несколько.',
-  'А этот текст слишком огромный.',
-  'Леша не токсичь',
-]}
-        onChange={setCurrentButtonText}
-      />
-      <Hint
-        buttonLabel="Показать подсказку"
-        title="Подсказка:"
-        message="Тыкнув на пространство вне подсказки она закроется!"
-      />
+      <Sidebar activeTab={activeTab} onSelectTab={setActiveTab} />
+
+      <main className={activeTab === 'base' ? 'page-shell page-shell-base' : 'page-shell'}>
+        {activeTab === 'base' && (
+          <section className="home-panel">
+            <p className="eyebrow">Gnezdo</p>
+            <h1>Main Page</h1>
+            <Button
+              onClick={() => setCount((count) => count + 1)}
+            >
+              Count is {count}
+            </Button>
+
+          </section>
+        )}
+
+        {activeTab === 'map' && (
+  <>
+    <section className="content-panel">
+      <h1>Map Page</h1>
+    </section>
+    <CheckBox
+      checked={isChecked}
+      onToggle={() => setIsChecked((currentValue) => !currentValue)}
+      label="Main page checkbox"
+    />
+  </>
+)}
+      </main>
     </>
   )
 }

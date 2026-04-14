@@ -182,3 +182,46 @@
     border-right-color: var(--border);
   }
 }
+
+.page-shell {
+  min-height: 100vh;
+  padding: 56px 40px 56px 72px;
+  box-sizing: border-box;
+}
+
+.page-shell-base {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-panel,
+.content-panel {
+  max-width: 640px;
+}
+
+.home-panel {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.home-copy {
+  max-width: 520px;
+}
+
+@media (max-width: 1024px) {
+  .page-shell {
+    min-height: auto;
+    padding: 56px 24px 32px;
+  }
+}
