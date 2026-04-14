@@ -1,0 +1,64 @@
+.hint {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+}
+
+.hint__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(8, 6, 13, 0.18);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.hint__dialog {
+  width: min(100%, 420px);
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+  box-sizing: border-box;
+  border: 1px solid rgba(140, 29, 24, 0.38);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(179, 50, 43, 0.18) 0%, rgba(179, 50, 43, 0.06) 22%, rgba(18, 15, 16, 0.96) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 28px 64px rgba(0, 0, 0, 0.42);
+  text-align: left;
+}
+
+.hint__eyebrow {
+  letter-spacing: 0.14em;
+}
+
+.hint__title {
+  margin: 0;
+}
+
+.hint__message {
+  max-width: 34ch;
+}
+
+.hint__close {
+  justify-self: start;
+}
+
+@media (max-width: 640px) {
+  .hint__overlay {
+    padding: 16px;
+  }
+
+  .hint__dialog {
+    padding: 22px;
+  }
+
+  .hint__close {
+    width: 100%;
+    justify-self: stretch;
+  }
+}

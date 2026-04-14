@@ -1,0 +1,35 @@
+.text {
+  margin: 0;
+  color: var(--text);
+}
+
+.text--body {
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.text--lead {
+  font-size: 1.125rem;
+  line-height: 1.6;
+  color: var(--text-h);
+}
+
+.text--caption {
+  display: inline-block;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.text--default {
+  color: var(--text);
+}
+
+.text--strong {
+  color: var(--text-h);
+}
+
+.text--muted {
+  opacity: 0.72;
+}
