@@ -49,3 +49,8 @@
     linear-gradient(180deg, rgba(130, 196, 105, 0.18) 0%, rgba(130, 196, 105, 0.02) 42%),
     linear-gradient(135deg, #233120 0%, #121811 60%, #080b08 100%);
 }
+
+.check-box:disabled {
+  cursor: default;
+  opacity: 0.92;
+}

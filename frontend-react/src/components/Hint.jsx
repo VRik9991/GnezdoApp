@@ -7,12 +7,15 @@ function Hint({
   buttonLabel,
   title,
   message,
+  buttonClassName = '',
 }) {
   const [isOpen, setIsOpen] = useState(false)
 
   return (
     <section className="hint">
-      <Button onClick={() => setIsOpen(true)}>{buttonLabel}</Button>
+      <Button className={buttonClassName} onClick={() => setIsOpen(true)}>
+        {buttonLabel}
+      </Button>
 
       {isOpen ? (
         <div
@@ -37,6 +40,9 @@ function Hint({
               {title}
             </Text>
             <Text className="hint__message">{message}</Text>
+            <Button className="hint__close" onClick={() => setIsOpen(false)}>
+              Закрыть
+            </Button>
           </div>
         </div>
       ) : null}

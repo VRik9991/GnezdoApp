@@ -23,7 +23,8 @@
   width: 220px;
   height: 100%;
   padding: 24px 12px;
-  background: #181313;
+  background:
+    linear-gradient(180deg, rgba(179, 50, 43, 0.2) 0%, rgba(24, 19, 19, 0.98) 14%, rgba(12, 8, 9, 0.98) 100%);
   border-right: 1px solid #4a1f1f;
   transform: translateX(-202px);
   transition: transform 0.25s ease;
@@ -38,6 +39,14 @@
   transform: translateX(0);
 }
 
+.sidebar-title {
+  margin: 0 0 8px;
+  padding: 0 8px;
+  color: #f0e8df;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+}
+
 .tab-button {
   padding: 12px 16px;
   border: 1px solid #5d2626;
@@ -45,9 +54,41 @@
   color: #d9c8c8;
   cursor: pointer;
   text-align: left;
+  border-radius: 10px;
 }
 
 .tab-button.active {
   background: #6e1f1f;
   color: white;
+}
+
+@media (max-width: 640px) {
+  .sidebar-shell {
+    position: static;
+    width: auto;
+    height: auto;
+    pointer-events: auto;
+  }
+
+  .sidebar-edge {
+    display: none;
+  }
+
+  .sidebar-panel {
+    position: static;
+    width: auto;
+    height: auto;
+    transform: none;
+    border-right: none;
+    border-bottom: 1px solid #4a1f1f;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 16px;
+  }
+
+  .sidebar-title {
+    width: 100%;
+    padding: 0;
+  }
 }
