@@ -1,6 +1,7 @@
 .hint {
   display: grid;
-  justify-items: center;
+  width: 100%;
+  justify-items: stretch;
   gap: 16px;
 }
 

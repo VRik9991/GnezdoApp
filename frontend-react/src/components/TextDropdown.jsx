@@ -3,7 +3,7 @@ import Button from './Button.jsx'
 import Text from './Text.jsx'
 import './TextDropdown.css'
 
-function TextDropdown({ onChange, messages }) {
+function TextDropdown({ onChange, messages, placeholder = 'Выберите действие' }) {
   const [isVisible, setIsVisible] = useState(false)
   const [selectedMessage, setSelectedMessage] = useState('')
 
@@ -20,7 +20,7 @@ function TextDropdown({ onChange, messages }) {
           className="toggle-launcher__button"
           onClick={() => setIsVisible(!isVisible)}
         >
-          {selectedMessage}
+          {selectedMessage || placeholder}
         </Button>
         <div className={`toggle-text-panel ${isVisible ? 'is-visible' : ''}`.trim()}>
           <div className="toggle-text-list">
