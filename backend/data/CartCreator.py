@@ -98,7 +98,7 @@ class CartCreator():
 
 if __name__ == "__main__":
     creator = CartCreator()
-    a = creator.generator()
+    a = creator.generator()[0]
     preview_path = Path(__file__).with_name("cart_preview.jpg")
     a.save(preview_path)
     a.show()
