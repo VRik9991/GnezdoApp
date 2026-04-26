@@ -1,6 +1,7 @@
 import random
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
+import json
 
 
 class CartCreator():
@@ -84,11 +85,16 @@ class CartCreator():
     
 
         
-        all_info = [rand_amount_of_blood,rand_type_of_feeding1,rand_type_of_feeding2,rand_type_of_feeding3,rand_resonuns,rand_event]
+        all_info = {"amount of blood":rand_amount_of_blood,
+                    "feedind 1":rand_type_of_feeding1,
+                    "feeding 2":rand_type_of_feeding2,
+                    "feeding 3":rand_type_of_feeding3,
+                    "resonuns":rand_resonuns,
+                    "event":rand_event}
 
 
 
-        return img,a
+        return img,all_info
 
 if __name__ == "__main__":
     creator = CartCreator()
