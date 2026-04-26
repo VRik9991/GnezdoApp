@@ -84,11 +84,11 @@ class CartCreator():
     
 
         
+        all_info = [rand_amount_of_blood,rand_type_of_feeding1,rand_type_of_feeding2,rand_type_of_feeding3,rand_resonuns,rand_event]
 
 
 
-
-        return img
+        return img,a
 
 if __name__ == "__main__":
     creator = CartCreator()
