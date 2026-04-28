@@ -4,6 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 import json
 
 
+
 class CartCreator():
     def __init__(self):
         self.amount_of_blood = {1: 397, 2: 405, 3: 398}
@@ -63,25 +64,40 @@ class CartCreator():
             weights=list(self.event.values()),
             k=1
         )[0]
-        font = ImageFont.truetype("arial.ttf", 20)
+        font = ImageFont.truetype('Gabriola.ttf', 50)
+        font2 = ImageFont.truetype('Gabriola.ttf',30)
         values = [rand_amount_of_blood,rand_type_of_feeding1,rand_type_of_feeding2,rand_type_of_feeding3,rand_resonuns,rand_event]    
         template_path = Path(__file__).with_name("default.jpg")
         with Image.open(template_path) as template:
             img = template.copy()
         draw = ImageDraw.Draw(img)
 
-        draw.text((450, 260), str(values[0]), fill="white", font=font, anchor="mm", align="center")
+        draw.text((450, 250), str(values[0]), fill="white", font=font, anchor="mm", align="center")
         draw.text((450, 380), str(values[1]), fill="black", font=font, anchor="mm", align="center")
         draw.text((450, 510), str(values[2]), fill="black", font=font, anchor="mm", align="center")
         draw.text((450, 640), str(values[3]), fill="black", font=font, anchor="mm", align="center")
         draw.text((450, 770), str(values[4]), fill="black", font=font,anchor="mm", align="center")
-        if len(str(values[5])) >= 40:
-            draw.text((257, 880), str(values[5])[:40], fill="black", font=font)
-            draw.text((257, 910), str(values[5])[40:80], fill="black", font=font)
-            draw.text((257, 940), str(values[5])[80:120], fill="black", font=font)
-            draw.text((257, 970), str(values[5])[120:160], fill="black", font=font)
-        else:
-            draw.text((257, 880), str(values[5]), fill="black", font=font)
+        event_text = str(values[5])
+        for i in range(8):
+            start = i * 40
+            end = start + 40
+            part = event_text[start:end]
+            if not part:
+                break
+
+            if end < len(event_text) and event_text[end - 1].isalpha() and event_text[end].isalpha():
+                part += "-"
+
+            draw.text((257, i*30+880), part, fill="black", font=font2)
+                    
+
+        #     draw.text((257, 880), str(values[5])[:40], fill="black", font=font2)
+        #     draw.text((257, 910), str(values[5])[40:80], fill="black", font=font2)
+        #     draw.text((257, 940), str(values[5])[80:120], fill="black", font=font2)
+        #     draw.text((257, 970), str(values[5])[120:160], fill="black", font=font2)
+        #     draw.text((257, 1000), str(values[5])[120:160], fill="black", font=font2)
+        # else:
+        #     draw.text((257, 880), str(values[5]), fill="black", font=font2)
     
 
         
