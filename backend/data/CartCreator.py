@@ -91,13 +91,7 @@ class CartCreator():
             draw.text((257, i*30+880), part, fill="black", font=font2)
                     
 
-        #     draw.text((257, 880), str(values[5])[:40], fill="black", font=font2)
-        #     draw.text((257, 910), str(values[5])[40:80], fill="black", font=font2)
-        #     draw.text((257, 940), str(values[5])[80:120], fill="black", font=font2)
-        #     draw.text((257, 970), str(values[5])[120:160], fill="black", font=font2)
-        #     draw.text((257, 1000), str(values[5])[120:160], fill="black", font=font2)
-        # else:
-        #     draw.text((257, 880), str(values[5]), fill="black", font=font2)
+        
     
 
         
