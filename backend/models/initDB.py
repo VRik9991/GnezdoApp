@@ -4,6 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 import os
 from backend.models.UserModel import UserModel
+from backend.models.NewsModel import NewsModel
 
 
 MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
@@ -24,6 +25,7 @@ async def init_db() -> None:
         database=_client["users"],
         document_models=[
             UserModel,
+            NewsModel
         ]
     )
     _initialized = True

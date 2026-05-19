@@ -1,7 +1,10 @@
+from datetime import datetime
 from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel, ConfigDict
+from backend.models.CommentsModel import CommentModel, serbia_now
+from backend.models.NewsModel import NewsModel
 from backend.models.UserModel import UserModel
 from backend.models.UserModelStats import UserModelStats
 from backend.models.initDB import init_db
@@ -21,8 +24,23 @@ class UserUpdate(BaseModel):
     password: Optional[str] = None
     role: Optional[list[str]] = None
 
+
+class NewsUpdate(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    name: str
+    active: Optional[bool] = None
+    pic: Optional[str] = None
+    fancy_comment: Optional[str] = None
+    text: Optional[str] = None
+    owner: Optional[str] = None
+    likes: Optional[int] = None
+    dislikes: Optional[int] = None
+    publish_date: Optional[datetime] = None
+    comments: Optional[list[CommentModel]] = None
+
 async def lifespan(app : FastAPI):
     await init_db()
+
     yield
 
 async def ensure_db() -> None:
@@ -34,6 +52,33 @@ app = FastAPI(
     lifespan=lifespan,
     dependencies=[Depends(ensure_db)],
 )
+
+
+async def get_owner_pic(owner: str) -> str:
+    user = await UserModel.find_one(
+        (UserModel.email == owner)
+
+    )
+    if user is None:
+        return ""
+    return user.foto
+
+
+async def fill_comment_owner_pic(comment: CommentModel) -> CommentModel:
+    if comment.owner_pic:
+        return comment
+    comment.owner_pic = await get_owner_pic(comment.owner)
+    return comment
+
+
+async def news_with_owner_pics(news: NewsModel) -> dict:
+    news.owner_pic = await get_owner_pic(news.owner)
+    news.comments = [
+        await fill_comment_owner_pic(comment)
+        for comment in news.comments
+    ]
+    return news.model_dump(mode="json")
+
 
 @app.get("/user_credentials")
 async def user_credentials():
@@ -113,3 +158,84 @@ async def delete_user(email: str):
     return {"detail": "User deleted"}
 
 
+@app.post("/news")
+async def create_news(payload: NewsModel):
+    payload.comments = [
+        await fill_comment_owner_pic(comment)
+        for comment in payload.comments
+    ]
+    payload.owner_pic = await get_owner_pic(payload.owner)
+    await payload.save()
+    return await news_with_owner_pics(payload)
+
+
+@app.post("/comment")
+async def post_comment(news_name: str, payload: CommentModel):
+    news = await NewsModel.find_one(NewsModel.name == news_name)
+    if news is None:
+        raise HTTPException(status_code=404, detail="News not found")
+    payload.date = serbia_now()
+    payload.owner_pic = await get_owner_pic(payload.owner)
+    news.comments.append(payload)
+    await news.save()
+    return payload.model_dump(mode="json")
+
+
+@app.delete("/comment")
+async def delete_comment(news_name: str, payload: CommentModel):
+    news = await NewsModel.find_one(NewsModel.name == news_name)
+    if news is None:
+        raise HTTPException(status_code=404, detail="News not found")
+    comment_index = None
+    for index, comment in enumerate(news.comments):
+        if (
+            comment.text == payload.text
+            and comment.owner == payload.owner
+            and comment.date == payload.date
+        ):
+            comment_index = index
+            break
+    if comment_index is None:
+        raise HTTPException(status_code=404, detail="Comment not found")
+    news.comments.pop(comment_index)
+    await news.save()
+    return {"detail": "Comment deleted"}
+
+
+@app.get("/news")
+async def get_news(name: str):
+    news = await NewsModel.find_one(NewsModel.name == name)
+    if news is None:
+        raise HTTPException(status_code=404, detail="News not found")
+    return await news_with_owner_pics(news)
+
+
+@app.put("/news")
+async def change_news(payload: NewsUpdate):
+    news = await NewsModel.find_one(NewsModel.name == payload.name)
+    if news is None:
+        raise HTTPException(status_code=404, detail="News not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    updates.pop("name", None)
+    comments = updates.pop("comments", None)
+    for key, value in updates.items():
+        setattr(news, key, value)
+    if comments is not None:
+        news.comments = [
+            await fill_comment_owner_pic(CommentModel.model_validate(comment))
+            for comment in comments
+        ]
+    news.owner_pic = await get_owner_pic(news.owner)
+    news.update_date = serbia_now()
+    await news.save()
+    return await news_with_owner_pics(news)
+
+
+@app.delete("/news")
+async def delete_news(name: str):
+    news = await NewsModel.find_one(NewsModel.name == name)
+    if news is None:
+        raise HTTPException(status_code=404, detail="News not found")
+    await news.delete()
+    return {"detail": "News deleted"}
